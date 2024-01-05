@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
         println!("Error: {}", e);
     }
 
-    println!("{:?}", read_to_string("Ctgen.toml").await?.parse::<toml::Table>()?);
+    //println!("{:?}", read_to_string("Ctgen.toml").await?.parse::<toml::Table>()?);
 
     //dotenvy::dotenv()?;
 

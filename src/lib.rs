@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
@@ -49,16 +50,23 @@ pub struct CtGen {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGenProfile {
-    profile: String,
-    saved_name: Option<String>,
+    name: Option<String>,
+    profile: CtGenProfileConfig,
+    prompt: HashMap<String, CtGenPrompt>,
+    target: HashMap<String, CtGenTarget>
+}
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct CtGenProfileConfig {
+    name: String,
     env_file: String,
     env_var: String,
-    database_connection: String,
+    database_str: String,
     target_dir: String,
     templates_dir: String,
     scripts_dir: String,
-    prompts: IndexMap<String, CtGenPrompt>,
-    targets: IndexMap<String, CtGenTarget>,
+    prompts: Vec<String>,
+    targets: Vec<String>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -262,8 +270,8 @@ impl CtGen {
         }
 
         // validate content
-        //let profile = CtGenProfile::load(&fullpath, name).await?;
-        //println!("{:?}", profile);
+        let profile = CtGenProfile::load(&fullpath, name).await?;
+        println!("{:?}", profile);
 
         // set profile
 
@@ -278,7 +286,7 @@ impl CtGenProfile {
         match tokio::fs::read_to_string(file).await {
             Ok(c) => {
                 let mut profile: CtGenProfile = toml::from_str(&c).map_err(|e| CtGenError::RuntimeError(format!("Failed to parse profile config: {}", e)))?;
-                profile.set_saved_name(name);
+                profile.set_name(name);
 
                 Ok(profile)
             }
@@ -286,8 +294,8 @@ impl CtGenProfile {
         }
     }
 
-    pub fn set_saved_name(&mut self, name: &str) -> &mut Self {
-        self.saved_name = Some(name.to_string());
+    pub fn set_name(&mut self, name: &str) -> &mut Self {
+        self.name = Some(name.to_string());
 
         self
     }
