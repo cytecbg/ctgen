@@ -1,16 +1,24 @@
 use anyhow::Result;
 use indexmap::IndexMap;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::fmt::{Display, Formatter};
-use tokio::io::AsyncWriteExt;
 use std::path::MAIN_SEPARATOR;
+use tokio::io::AsyncWriteExt;
 
 pub const CONFIG_DIR_NAME: &str = "ctgen";
 pub const CONFIG_FILE_NAME: &str = "Profiles.toml";
+pub const CONFIG_NAME_DEFAULT: &str = "default";
+pub const CONFIG_NAME_PATTERN: &str = r"^[a-zA-Z-_]+$";
+
+pub const PROFILE_DEFAULT_FILENAME: &str = "Ctgen.toml";
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CtGenError {
     InitError(String),
+    ValidationError(String),
+    RuntimeError(String),
 }
 
 impl Display for CtGenError {
@@ -18,6 +26,12 @@ impl Display for CtGenError {
         match self {
             CtGenError::InitError(s) => {
                 write!(f, "InitError: {}", s)
+            }
+            CtGenError::ValidationError(s) => {
+                write!(f, "ValidationError: {}", s)
+            }
+            CtGenError::RuntimeError(s) => {
+                write!(f, "RuntimeError: {}", s)
             }
         }
     }
@@ -35,8 +49,8 @@ pub struct CtGen {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGenProfile {
-    name: String,
-    default_name: String,
+    profile: String,
+    saved_name: Option<String>,
     env_file: String,
     env_var: String,
     database_connection: String,
@@ -62,22 +76,19 @@ pub struct CtGenTarget {
 }
 
 impl CtGen {
+    /// Init CtGen library
     pub async fn new() -> Result<Self> {
         let config_path = CtGen::get_config_dir()?;
 
         CtGen::init_config_dir(&config_path).await?;
 
-        let config_file = CtGen::get_config_file(&config_path);
+        let config_file = CtGen::get_config_file(&config_path).await?;
 
-        if !CtGen::config_file_is_writable(&config_file).await {
-            return Err(CtGenError::InitError(format!(
-                "Config file not accessible: {}",
-                &config_file
-            ))
-            .into());
+        if !CtGen::file_is_writable(&config_file).await {
+            return Err(CtGenError::InitError(format!("Config file not accessible: {}", &config_file)).into());
         }
 
-        if !CtGen::config_file_exists(&config_file).await {
+        if !CtGen::file_exists(&config_file).await {
             CtGen::init_config_file(&config_file).await?;
         }
 
@@ -91,33 +102,70 @@ impl CtGen {
         })
     }
 
+    /// Resole and get path to store config files
     pub fn get_config_dir() -> Result<String> {
-        let path = dirs::config_dir().ok_or(CtGenError::InitError(
-            "Failed to get config directory.".to_string(),
-        ))?;
+        let path = dirs::config_dir().ok_or(CtGenError::InitError("Failed to get config directory.".to_string()))?;
 
         Ok(format!(
             "{}{}{}",
             path.into_os_string()
                 .into_string()
-                .map_err(|e| CtGenError::InitError(format!(
-                    "Failed to parse UTF-8 path: {:?}",
-                    e
-                )))?,
+                .map_err(|e| CtGenError::InitError(format!("Failed to parse UTF-8 path: {:?}", e)))?,
             MAIN_SEPARATOR,
             CONFIG_DIR_NAME
         ))
     }
 
-    pub fn get_config_file(path: &str) -> String {
-        format!("{}{}{}", path, MAIN_SEPARATOR, CONFIG_FILE_NAME)
+    pub fn get_current_working_dir() -> Result<String> {
+        Ok(env::current_dir()
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to get current working directory: {}", e)))?
+            .into_os_string()
+            .into_string()
+            .map_err(|s| CtGenError::RuntimeError(format!("Failed to parse UTC-8 path: {:?}", s)))?)
     }
 
-    pub async fn config_file_is_writable(file: &str) -> bool {
+    /// Get full filepath and filename
+    pub fn get_filepath(path: &str, file: &str) -> String {
+        format!("{}{}{}", path, MAIN_SEPARATOR, file)
+    }
+
+    /// Get canonical path
+    pub async fn get_realpath(path: &str) -> Result<String> {
+        let mut path = path.to_string();
+
+        if path.starts_with('~') {
+            if let Ok(home) = env::var("HOME") {
+                path.remove(0);
+                path.insert(0, MAIN_SEPARATOR);
+                path.insert_str(0, &home);
+            }
+        }
+
+        Ok(tokio::fs::canonicalize(path)
+            .await
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to resolve path: {:?}", e)))?
+            .into_os_string()
+            .into_string()
+            .map_err(|s| CtGenError::RuntimeError(format!("Failed to parse UTC-8 path: {:?}", s)))?)
+    }
+
+    /// Get full canonical filepath and filename
+    pub async fn get_real_filepath(path: &str, file: &str) -> Result<String> {
+        Ok(CtGen::get_realpath(&CtGen::get_filepath(path, file)).await?)
+    }
+
+    /// Get full config filepath and filename
+    pub async fn get_config_file(path: &str) -> Result<String> {
+        Ok(CtGen::get_real_filepath(path, CONFIG_FILE_NAME).await?)
+    }
+
+    /// Check if a given file location is writeable
+    pub async fn file_is_writable(file: &str) -> bool {
         tokio::fs::try_exists(file).await.is_ok()
     }
 
-    pub async fn config_file_exists(file: &str) -> bool {
+    /// Check if file exists
+    pub async fn file_exists(file: &str) -> bool {
         if let Ok(r) = tokio::fs::try_exists(file).await {
             return r;
         }
@@ -125,6 +173,7 @@ impl CtGen {
         false
     }
 
+    /// Create an empty config file to store profiles
     async fn init_config_file(config_file: &str) -> Result<()> {
         // try to create
         let mut file = tokio::fs::OpenOptions::new()
@@ -132,33 +181,35 @@ impl CtGen {
             .create_new(true)
             .open(&config_file)
             .await
-            .map_err(|e| {
-                CtGenError::InitError(format!("Cannot create config file: {}", e))
-            })?;
+            .map_err(|e| CtGenError::InitError(format!("Cannot create config file: {}", e)))?;
 
-        file.write("[profiles]".as_bytes()).await.map_err(|_e| {
-            CtGenError::InitError(format!("Cannot write to config file: {}", config_file))
-        })?;
+        file.write("[profiles]".as_bytes())
+            .await
+            .map_err(|_e| CtGenError::InitError(format!("Cannot write to config file: {}", config_file)))?;
 
-        file.flush().await.map_err(|_e| {
-            CtGenError::InitError(format!("Cannot flush to config file: {}", config_file))
-        })?;
+        file.flush()
+            .await
+            .map_err(|_e| CtGenError::InitError(format!("Cannot flush to config file: {}", config_file)))?;
 
         Ok(())
     }
 
+    /// Create all necessary directories to store profiles config
     async fn init_config_dir(config_path: &str) -> Result<()> {
-        Ok(tokio::fs::create_dir_all(&config_path).await.map_err(|e| {
-            CtGenError::InitError(format!("Cannot create config directory: {}", e))
-        })?)
+        Ok(tokio::fs::create_dir_all(&config_path)
+            .await
+            .map_err(|e| CtGenError::InitError(format!("Cannot create config directory: {}", e)))?)
     }
 
+    /// Load profiles config file
     async fn load_profiles(config_file: &str) -> Result<IndexMap<String, String>> {
         match tokio::fs::read_to_string(config_file).await {
             Ok(c) => {
                 let mut profiles: IndexMap<String, String> = IndexMap::new();
 
-                let config = c.parse::<toml::Table>().map_err(|e| CtGenError::InitError(format!("Failed to parse profiles: {}", e)))?;
+                let config = c
+                    .parse::<toml::Table>()
+                    .map_err(|e| CtGenError::InitError(format!("Failed to parse profiles: {}", e)))?;
 
                 if let Some(config_profiles) = config.get("profiles") {
                     if config_profiles.is_table() {
@@ -170,13 +221,74 @@ impl CtGen {
 
                 Ok(profiles)
             }
-            Err(e) => {
-                Err(CtGenError::InitError(format!("Failed to load profiles: {}", e)).into())
-            }
+            Err(e) => Err(CtGenError::InitError(format!("Failed to load profiles: {}", e)).into()),
         }
     }
 
+    /// Get a list of loaded profiles
     pub fn get_profiles(&self) -> &IndexMap<String, String> {
         &self.profiles
+    }
+
+    /// Set a new profile or replace existing
+    pub async fn set_profile(&mut self, name: &str, path: &str) -> Result<()> {
+        // validate name
+        let regex =
+            Regex::new(CONFIG_NAME_PATTERN).map_err(|e| CtGenError::ValidationError(format!("Failed to compile regex pattern: {}", e)))?;
+
+        if !regex.is_match(name) {
+            return Err(CtGenError::ValidationError(format!(
+                "Invalid profile name: {}. Make sure it matches {}",
+                name, CONFIG_NAME_PATTERN
+            ))
+            .into());
+        }
+
+        // validate path
+        let fullpath = if path == "." || path == "./" {
+            // default, cwd
+            let cwd = CtGen::get_current_working_dir()?;
+            CtGen::get_real_filepath(&cwd, PROFILE_DEFAULT_FILENAME).await?
+        } else if !path.ends_with(".toml") {
+            // path to somewhere, no file specified
+            CtGen::get_real_filepath(path, PROFILE_DEFAULT_FILENAME).await?
+        } else {
+            // path to a .toml file
+            CtGen::get_realpath(path).await?
+        };
+
+        if CtGen::file_exists(&fullpath).await {
+            println!("{fullpath}");
+        }
+
+        // validate content
+        //let profile = CtGenProfile::load(&fullpath, name).await?;
+        //println!("{:?}", profile);
+
+        // set profile
+
+        // save profiles
+
+        Ok(())
+    }
+}
+
+impl CtGenProfile {
+    pub async fn load(file: &str, name: &str) -> Result<Self> {
+        match tokio::fs::read_to_string(file).await {
+            Ok(c) => {
+                let mut profile: CtGenProfile = toml::from_str(&c).map_err(|e| CtGenError::RuntimeError(format!("Failed to parse profile config: {}", e)))?;
+                profile.set_saved_name(name);
+
+                Ok(profile)
+            }
+            Err(e) => Err(CtGenError::RuntimeError(format!("Failed to load profile config: {}", e)).into()),
+        }
+    }
+
+    pub fn set_saved_name(&mut self, name: &str) -> &mut Self {
+        self.saved_name = Some(name.to_string());
+
+        self
     }
 }

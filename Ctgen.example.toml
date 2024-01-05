@@ -1,5 +1,5 @@
-[general]
-profile = "test"
+[profile]
+name = "test"
 env = "DB_CONNECTION"
 database = ""
 target-dir = "."

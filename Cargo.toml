@@ -5,16 +5,17 @@ edition = "2021"
 
 [dependencies]
 futures = "^0"
-tokio = { version = "^1.28", features = ["full"] }
+tokio = { version = "^1", features = ["full"] }
 log = "^0"
 env_logger = "^0"
 anyhow = "^1.0"
-dotenvy = "^0.15"
+dotenvy = "^0"
 clap = { version = "^4", features = ["derive"] }
 dirs = "^5"
 toml = "^0"
+regex = "^1"
 indexmap = { version = "^2", features = ["serde"] }
-serde_json = "^1.0"
+serde_json = "^1"
 serde = { version = "^1", features = ["derive"] }
 handlebars = { version = "^4", features = ["dir_source"] }
 handlebars-inflector = "^0.1.0"
