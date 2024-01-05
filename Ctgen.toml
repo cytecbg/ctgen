@@ -1,11 +1,11 @@
 [profile]
 name = "test"
-env_file = ".env"
-env_var = "DB_CONNECTION"
-database_str = ""
-target_dir = "."
-templates_dir = "assets/templates"
-scripts_dir = "assets/scripts"
+env-file = ".env"
+env-var = "DB_CONNECTION"
+dsn = ""
+target-dir = "."
+templates-dir = "assets/templates"
+scripts-dir = "assets/scripts"
 prompts = [ "dummy" ]
 targets = [ "test" ]
 

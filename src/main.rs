@@ -1,12 +1,25 @@
 use anyhow::Result;
-use tokio::fs::read_to_string;
 use ctgen::{CtGen, CONFIG_NAME_DEFAULT};
 
 #[tokio::main]
 #[allow(unreachable_code)]
 async fn main() -> Result<()> {
+    //dotenvy::dotenv()?;
+    
     let mut ctgen = CtGen::new().await?;
 
+    list_profiles(&ctgen);
+
+    register_profile_default(&mut ctgen).await;
+
+    list_profiles(&ctgen);
+
+
+
+    Ok(())
+}
+
+fn list_profiles(ctgen: &CtGen) {
     if !ctgen.get_profiles().is_empty() {
         for (profile_name, profile_file) in ctgen.get_profiles().iter() {
             println!("Profile {} at {}", profile_name, profile_file);
@@ -14,14 +27,10 @@ async fn main() -> Result<()> {
     } else {
         println!("No profiles found.");
     }
+}
 
-    if let Err(e) = ctgen.set_profile(CONFIG_NAME_DEFAULT, "~/IdeaProjects/ctgen/Ctgen.toml").await {
+async fn register_profile_default(ctgen: &mut CtGen) {
+    if let Err(e) = ctgen.set_profile(CONFIG_NAME_DEFAULT, "~/IdeaProjects/ctgen/Ctgen.example.toml").await {
         println!("Error: {}", e);
     }
-
-    //println!("{:?}", read_to_string("Ctgen.toml").await?.parse::<toml::Table>()?);
-
-    //dotenvy::dotenv()?;
-
-    Ok(())
 }

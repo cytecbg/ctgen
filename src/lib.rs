@@ -59,11 +59,16 @@ pub struct CtGenProfile {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGenProfileConfig {
     name: String,
+    #[serde(rename = "env-file")]
     env_file: String,
+    #[serde(rename = "env-var")]
     env_var: String,
-    database_str: String,
+    dsn: String,
+    #[serde(rename = "target-dir")]
     target_dir: String,
+    #[serde(rename = "templates-dir")]
     templates_dir: String,
+    #[serde(rename = "scripts-dir")]
     scripts_dir: String,
     prompts: Vec<String>,
     targets: Vec<String>,
