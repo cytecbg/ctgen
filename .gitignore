@@ -12,3 +12,18 @@ Cargo.lock
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
+
+# Added by cargo
+
+/target
+/Cargo.lock
+
+# IntelliJ Shit
+.idea/
+ctgen.iml
+
+# VSCode Shit
+.vscode/
+
+# Tarpaulin
+tarpaulin-report.html
