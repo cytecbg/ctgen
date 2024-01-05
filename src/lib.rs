@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::fmt::{Display, Formatter};
 use std::path::MAIN_SEPARATOR;
+use std::slice::Iter;
 use tokio::io::AsyncWriteExt;
+use toml::Value;
 
 pub const CONFIG_DIR_NAME: &str = "ctgen";
 pub const CONFIG_FILE_NAME: &str = "Profiles.toml";
@@ -50,7 +52,8 @@ pub struct CtGen {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGenProfile {
-    name: Option<String>,
+    #[serde(default)]
+    name: String,
     profile: CtGenProfileConfig,
     prompt: HashMap<String, CtGenPrompt>,
     target: HashMap<String, CtGenTarget>
@@ -74,11 +77,12 @@ pub struct CtGenProfileConfig {
     targets: Vec<String>,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CtGenPrompt {
     condition: Option<String>,
     prompt: String,
-    options: toml::Table,
+    #[serde(default = "CtGenPrompt::default_options")]
+    options: toml::Value,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -300,8 +304,90 @@ impl CtGenProfile {
     }
 
     pub fn set_name(&mut self, name: &str) -> &mut Self {
-        self.name = Some(name.to_string());
+        self.name = name.to_string();
 
         self
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn configuration(&self) -> &CtGenProfileConfig {
+        &self.profile
+    }
+
+    pub fn prompts(&self) -> Iter<'_, String> {
+        self.profile.prompts.iter()
+    }
+
+    pub fn prompt(&self, prompt: &str) -> Option<&CtGenPrompt> {
+        self.prompt.get(prompt)
+    }
+
+    pub fn targets(&self) -> Iter<'_, String> {
+        self.profile.targets.iter()
+    }
+
+    pub fn target(&self, target: &str) -> Option<&CtGenTarget> {
+        self.target.get(target)
+    }
+}
+
+impl CtGenProfileConfig {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn env_file(&self) -> &str {
+        &self.env_file
+    }
+    pub fn env_var(&self) -> &str {
+        &self.env_var
+    }
+    pub fn dsn(&self) -> &str {
+        &self.dsn
+    }
+    pub fn target_dir(&self) -> &str {
+        &self.target_dir
+    }
+    pub fn templates_dir(&self) -> &str {
+        &self.templates_dir
+    }
+    pub fn scripts_dir(&self) -> &str {
+        &self.scripts_dir
+    }
+    pub fn prompts(&self) -> &Vec<String> {
+        &self.prompts
+    }
+    pub fn targets(&self) -> &Vec<String> {
+        &self.targets
+    }
+}
+
+impl CtGenPrompt {
+    pub fn default_options() -> Value {
+        toml::Value::Boolean(false)
+    }
+
+    pub fn condition(&self) -> Option<&str> {
+        self.condition.as_ref().map(String::as_str)
+    }
+    pub fn prompt(&self) -> &str {
+        &self.prompt
+    }
+    pub fn options(&self) -> &toml::Value {
+        &self.options
+    }
+}
+
+impl CtGenTarget {
+    pub fn template(&self) -> &str {
+        &self.template
+    }
+    pub fn target(&self) -> &str {
+        &self.target
+    }
+    pub fn formatter(&self) -> Option<&str> {
+        self.formatter.as_ref().map(String::as_str)
     }
 }

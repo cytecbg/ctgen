@@ -5,7 +5,7 @@ use ctgen::{CtGen, CONFIG_NAME_DEFAULT};
 #[allow(unreachable_code)]
 async fn main() -> Result<()> {
     //dotenvy::dotenv()?;
-    
+
     let mut ctgen = CtGen::new().await?;
 
     list_profiles(&ctgen);
