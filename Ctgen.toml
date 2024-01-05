@@ -1,0 +1,17 @@
+[general]
+profile = "test"
+env = "DB_CONNECTION"
+database = ""
+target-dir = "."
+templates-dir = "assets/templates"
+scripts-dir = "assets/scripts"
+prompts = [ "dummy" ]
+targets = [ "test" ]
+
+[prompt.dummy]
+prompt = "Would you like to proceed?"
+options = { 1 = "Yes", 0 = "No" }
+
+[target.test]
+template = "test"
+target = "target/render/{{table/name}}.md"

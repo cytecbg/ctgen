@@ -1,0 +1,34 @@
+[general]
+profile = "test"
+env = "DB_CONNECTION"
+database = ""
+target-dir = "."
+templates-dir = "assets/templates"
+scripts-dir = "assets/scripts"
+prompts = [ "order", "multiselect", "submodule" ]
+targets = [ "rust", "react" ]
+
+[prompt.order]
+condition = "{{#each table/fields}}{{#if (eq name \"position\")}}{{name}}{{/if}}{{/each}}"
+prompt = "Would you like to add order page?"
+options = { 1 = "Yes", 0 = "No" }
+
+[prompt.multiselect]
+condition = "a script to check if the primary key is a foreign column in another table's constraint that fits the description of an intermediary table, for example product_categories for categories"
+prompt = "Would you like to manage [foreign table name] as multi-select chip component?"
+options = { 1 = "Yes", 0 = "No" }
+
+[prompt.submodule]
+condition = "a script to check if the primary key is a foreign column in another table's constraint that fits the description of a belongs-to relation, for example product_prices or product_images"
+prompt = "Would you like to add a submodule for [foreign table name]?"
+options = { 1 = "Yes", 0 = "No" }
+
+[target.rust]
+template = "backend/rust_actix_graphql"
+target = "src/backend/{{table/name}}.rs"
+formatter = "cargo fmt"
+
+[target.react]
+template = "frontend/react_admin"
+target = "backend/src/routes/{{inflect table/name to_pascal_case=true}}.rs"
+formatter = "npx prettify"
