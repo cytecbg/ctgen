@@ -1,14 +1,13 @@
-use std::collections::HashMap;
 use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use std::fmt::{Display, Formatter};
 use std::path::MAIN_SEPARATOR;
 use std::slice::Iter;
 use tokio::io::AsyncWriteExt;
-use toml::Value;
 
 pub const CONFIG_DIR_NAME: &str = "ctgen";
 pub const CONFIG_FILE_NAME: &str = "Profiles.toml";
@@ -56,7 +55,7 @@ pub struct CtGenProfile {
     name: String,
     profile: CtGenProfileConfig,
     prompt: HashMap<String, CtGenPrompt>,
-    target: HashMap<String, CtGenTarget>
+    target: HashMap<String, CtGenTarget>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -99,7 +98,7 @@ impl CtGen {
 
         CtGen::init_config_dir(&config_path).await?;
 
-        let config_file = CtGen::get_config_file(&config_path).await?;
+        let config_file = CtGen::get_config_file(&config_path);
 
         if !CtGen::file_is_writable(&config_file).await {
             return Err(CtGenError::InitError(format!("Config file not accessible: {}", &config_file)).into());
@@ -172,8 +171,8 @@ impl CtGen {
     }
 
     /// Get full config filepath and filename
-    pub async fn get_config_file(path: &str) -> Result<String> {
-        Ok(CtGen::get_real_filepath(path, CONFIG_FILE_NAME).await?)
+    pub fn get_config_file(path: &str) -> String {
+        CtGen::get_filepath(path, CONFIG_FILE_NAME)
     }
 
     /// Check if a given file location is writeable
@@ -195,6 +194,7 @@ impl CtGen {
         // try to create
         let mut file = tokio::fs::OpenOptions::new()
             .write(true)
+            .truncate(true)
             .create_new(true)
             .open(&config_file)
             .await
@@ -231,7 +231,7 @@ impl CtGen {
                 if let Some(config_profiles) = config.get("profiles") {
                     if config_profiles.is_table() {
                         for (profile_name, profile_file) in config_profiles.as_table().unwrap().iter() {
-                            profiles.insert(profile_name.to_string(), profile_file.to_string());
+                            profiles.insert(profile_name.to_string(), profile_file.as_str().unwrap_or("").to_string());
                         }
                     }
                 }
@@ -240,6 +240,36 @@ impl CtGen {
             }
             Err(e) => Err(CtGenError::InitError(format!("Failed to load profiles: {}", e)).into()),
         }
+    }
+
+    async fn save_profiles(&self) -> Result<()> {
+        let mut profiles_config = toml::map::Map::new();
+        let mut profiles = toml::Table::new();
+        for (profile_name, profile_file) in self.profiles.iter() {
+            profiles.insert(profile_name.to_string(), toml::Value::String(profile_file.to_string()));
+        }
+
+        profiles_config.insert("profiles".to_string(), toml::Value::Table(profiles));
+
+        let toml = toml::to_string_pretty(&profiles_config)
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to generate toml file: {}", e)))?;
+
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.config_file)
+            .await
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to open toml file: {}", e)))?;
+
+        file.write_all(toml.as_bytes())
+            .await
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to write toml file: {}", e)))?;
+
+        file.flush()
+            .await
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to flush toml file: {}", e)))?;
+
+        Ok(())
     }
 
     /// Get a list of loaded profiles
@@ -274,19 +304,32 @@ impl CtGen {
             CtGen::get_realpath(path).await?
         };
 
-        if CtGen::file_exists(&fullpath).await {
-            println!("{fullpath}");
+        if !CtGen::file_exists(&fullpath).await {
+            return Err(CtGenError::ValidationError(format!("Profile config file not found: {}", fullpath)).into());
         }
 
         // validate content
-        let profile = CtGenProfile::load(&fullpath, name).await?;
-        println!("{:?}", profile);
+        CtGenProfile::load(&fullpath, name).await?.validate().await?;
 
         // set profile
+        self.profiles.insert(name.to_string(), fullpath.clone());
 
         // save profiles
+        self.save_profiles().await
+    }
 
-        Ok(())
+    pub async fn remove_profile(&mut self, name: &str) -> Result<()> {
+        if self.profiles.contains_key(name) {
+            self.profiles.remove(name);
+        }
+
+        if let Some(profile) = self.current_profile.clone() {
+            if profile.name() == name {
+                self.current_profile = None;
+            }
+        }
+
+        self.save_profiles().await
     }
 }
 
@@ -294,13 +337,18 @@ impl CtGenProfile {
     pub async fn load(file: &str, name: &str) -> Result<Self> {
         match tokio::fs::read_to_string(file).await {
             Ok(c) => {
-                let mut profile: CtGenProfile = toml::from_str(&c).map_err(|e| CtGenError::RuntimeError(format!("Failed to parse profile config: {}", e)))?;
+                let mut profile: CtGenProfile =
+                    toml::from_str(&c).map_err(|e| CtGenError::RuntimeError(format!("Failed to parse profile config: {}", e)))?;
                 profile.set_name(name);
 
                 Ok(profile)
             }
             Err(e) => Err(CtGenError::RuntimeError(format!("Failed to load profile config: {}", e)).into()),
         }
+    }
+
+    pub async fn validate(&self) -> Result<()> {
+        Ok(())
     }
 
     pub fn set_name(&mut self, name: &str) -> &mut Self {
@@ -365,7 +413,7 @@ impl CtGenProfileConfig {
 }
 
 impl CtGenPrompt {
-    pub fn default_options() -> Value {
+    pub fn default_options() -> toml::Value {
         toml::Value::Boolean(false)
     }
 

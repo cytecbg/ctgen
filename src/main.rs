@@ -10,11 +10,13 @@ async fn main() -> Result<()> {
 
     list_profiles(&ctgen);
 
-    register_profile_default(&mut ctgen).await;
+    if ctgen.get_profiles().len() == 0 {
+        register_profile_default(&mut ctgen).await;
+    } else {
+        remove_profile_default(&mut ctgen).await;
+    }
 
     list_profiles(&ctgen);
-
-
 
     Ok(())
 }
@@ -30,7 +32,13 @@ fn list_profiles(ctgen: &CtGen) {
 }
 
 async fn register_profile_default(ctgen: &mut CtGen) {
-    if let Err(e) = ctgen.set_profile(CONFIG_NAME_DEFAULT, "~/IdeaProjects/ctgen/Ctgen.example.toml").await {
+    if let Err(e) = ctgen.set_profile(CONFIG_NAME_DEFAULT, ".").await {
+        println!("Error: {}", e);
+    }
+}
+
+async fn remove_profile_default(ctgen: &mut CtGen) {
+    if let Err(e) = ctgen.remove_profile(CONFIG_NAME_DEFAULT).await {
         println!("Error: {}", e);
     }
 }
