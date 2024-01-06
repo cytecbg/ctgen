@@ -1,45 +1,17 @@
+pub mod profile;
+pub mod consts;
+pub mod error;
+
 use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::env;
-use std::fmt::{Display, Formatter};
 use std::path::MAIN_SEPARATOR;
-use std::slice::Iter;
 use tokio::io::AsyncWriteExt;
-
-pub const CONFIG_DIR_NAME: &str = "ctgen";
-pub const CONFIG_FILE_NAME: &str = "Profiles.toml";
-pub const CONFIG_NAME_DEFAULT: &str = "default";
-pub const CONFIG_NAME_PATTERN: &str = r"^[a-zA-Z-_]+$";
-
-pub const PROFILE_DEFAULT_FILENAME: &str = "Ctgen.toml";
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum CtGenError {
-    InitError(String),
-    ValidationError(String),
-    RuntimeError(String),
-}
-
-impl Display for CtGenError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CtGenError::InitError(s) => {
-                write!(f, "InitError: {}", s)
-            }
-            CtGenError::ValidationError(s) => {
-                write!(f, "ValidationError: {}", s)
-            }
-            CtGenError::RuntimeError(s) => {
-                write!(f, "RuntimeError: {}", s)
-            }
-        }
-    }
-}
-
-impl std::error::Error for CtGenError {}
+use crate::consts::*;
+use crate::error::CtGenError;
+use crate::profile::{CtGenProfile};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGen {
@@ -47,48 +19,6 @@ pub struct CtGen {
     config_file: String,
     profiles: IndexMap<String, String>,
     current_profile: Option<CtGenProfile>,
-}
-
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct CtGenProfile {
-    #[serde(default)]
-    name: String,
-    profile: CtGenProfileConfig,
-    prompt: HashMap<String, CtGenPrompt>,
-    target: HashMap<String, CtGenTarget>,
-}
-
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct CtGenProfileConfig {
-    name: String,
-    #[serde(rename = "env-file")]
-    env_file: String,
-    #[serde(rename = "env-var")]
-    env_var: String,
-    dsn: String,
-    #[serde(rename = "target-dir")]
-    target_dir: String,
-    #[serde(rename = "templates-dir")]
-    templates_dir: String,
-    #[serde(rename = "scripts-dir")]
-    scripts_dir: String,
-    prompts: Vec<String>,
-    targets: Vec<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct CtGenPrompt {
-    condition: Option<String>,
-    prompt: String,
-    #[serde(default = "CtGenPrompt::default_options")]
-    options: toml::Value,
-}
-
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct CtGenTarget {
-    template: String,
-    target: String,
-    formatter: Option<String>,
 }
 
 impl CtGen {
@@ -167,7 +97,7 @@ impl CtGen {
 
     /// Get full canonical filepath and filename
     pub async fn get_real_filepath(path: &str, file: &str) -> Result<String> {
-        Ok(CtGen::get_realpath(&CtGen::get_filepath(path, file)).await?)
+        CtGen::get_realpath(&CtGen::get_filepath(path, file)).await
     }
 
     /// Get full config filepath and filename
@@ -333,109 +263,4 @@ impl CtGen {
     }
 }
 
-impl CtGenProfile {
-    pub async fn load(file: &str, name: &str) -> Result<Self> {
-        match tokio::fs::read_to_string(file).await {
-            Ok(c) => {
-                let mut profile: CtGenProfile =
-                    toml::from_str(&c).map_err(|e| CtGenError::RuntimeError(format!("Failed to parse profile config: {}", e)))?;
-                profile.set_name(name);
 
-                Ok(profile)
-            }
-            Err(e) => Err(CtGenError::RuntimeError(format!("Failed to load profile config: {}", e)).into()),
-        }
-    }
-
-    pub async fn validate(&self) -> Result<()> {
-        Ok(())
-    }
-
-    pub fn set_name(&mut self, name: &str) -> &mut Self {
-        self.name = name.to_string();
-
-        self
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn configuration(&self) -> &CtGenProfileConfig {
-        &self.profile
-    }
-
-    pub fn prompts(&self) -> Iter<'_, String> {
-        self.profile.prompts.iter()
-    }
-
-    pub fn prompt(&self, prompt: &str) -> Option<&CtGenPrompt> {
-        self.prompt.get(prompt)
-    }
-
-    pub fn targets(&self) -> Iter<'_, String> {
-        self.profile.targets.iter()
-    }
-
-    pub fn target(&self, target: &str) -> Option<&CtGenTarget> {
-        self.target.get(target)
-    }
-}
-
-impl CtGenProfileConfig {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-    pub fn env_file(&self) -> &str {
-        &self.env_file
-    }
-    pub fn env_var(&self) -> &str {
-        &self.env_var
-    }
-    pub fn dsn(&self) -> &str {
-        &self.dsn
-    }
-    pub fn target_dir(&self) -> &str {
-        &self.target_dir
-    }
-    pub fn templates_dir(&self) -> &str {
-        &self.templates_dir
-    }
-    pub fn scripts_dir(&self) -> &str {
-        &self.scripts_dir
-    }
-    pub fn prompts(&self) -> &Vec<String> {
-        &self.prompts
-    }
-    pub fn targets(&self) -> &Vec<String> {
-        &self.targets
-    }
-}
-
-impl CtGenPrompt {
-    pub fn default_options() -> toml::Value {
-        toml::Value::Boolean(false)
-    }
-
-    pub fn condition(&self) -> Option<&str> {
-        self.condition.as_ref().map(String::as_str)
-    }
-    pub fn prompt(&self) -> &str {
-        &self.prompt
-    }
-    pub fn options(&self) -> &toml::Value {
-        &self.options
-    }
-}
-
-impl CtGenTarget {
-    pub fn template(&self) -> &str {
-        &self.template
-    }
-    pub fn target(&self) -> &str {
-        &self.target
-    }
-    pub fn formatter(&self) -> Option<&str> {
-        self.formatter.as_ref().map(String::as_str)
-    }
-}

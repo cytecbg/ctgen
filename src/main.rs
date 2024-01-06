@@ -1,5 +1,6 @@
 use anyhow::Result;
-use ctgen::{CtGen, CONFIG_NAME_DEFAULT};
+use ctgen::{CtGen};
+use ctgen::consts::CONFIG_NAME_DEFAULT;
 
 #[tokio::main]
 #[allow(unreachable_code)]
@@ -10,7 +11,7 @@ async fn main() -> Result<()> {
 
     list_profiles(&ctgen);
 
-    if ctgen.get_profiles().len() == 0 {
+    if ctgen.get_profiles().is_empty() {
         register_profile_default(&mut ctgen).await;
     } else {
         remove_profile_default(&mut ctgen).await;
