@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 #[command(author = "Cytec BG", version, about = "Code Template Generator", long_about = None)]
 pub struct Args {
     #[command(subcommand)]
-    command: Commands,
+    pub command: Commands,
 }
 
 #[derive(Subcommand, Debug)]

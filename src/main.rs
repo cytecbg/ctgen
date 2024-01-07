@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 #[allow(unused_imports)]
 use log::{debug, error, log_enabled, info, Level};
-use ctgen::cli::Args;
+use ctgen::cli::{Args, CommandConfig, Commands};
 use ctgen::consts::CONFIG_NAME_DEFAULT;
 use ctgen::CtGen;
 
@@ -11,25 +11,40 @@ use ctgen::CtGen;
 async fn main() -> Result<()> {
     env_logger::init();
 
-    let args = Args::parse();
-
-    println!("{:?}", args);
-
     //dotenvy::dotenv()?;
+
+    let args = Args::parse();
 
     let mut ctgen = CtGen::new().await?;
 
-    list_profiles(&ctgen);
+    match args.command {
+        Commands::Config { op } => {
+            match op {
+                CommandConfig::Add { default: _, name, path} => {
+                    let profile_name = if let Some(n) = name.as_deref() {
+                        n
+                    } else {
+                        CONFIG_NAME_DEFAULT
+                    };
 
-    if ctgen.get_profiles().is_empty() {
-        register_profile_default(&mut ctgen).await;
-    } else {
-        remove_profile_default(&mut ctgen).await;
+                    ctgen.set_profile(profile_name, &path).await
+                }
+                CommandConfig::List => {
+                    list_profiles(&ctgen);
+
+                    Ok(())
+                }
+                CommandConfig::Rm { name} => {
+                    ctgen.remove_profile(&name).await
+                }
+            }
+        }
+        Commands::Run { table } => {
+            println!("run for {:?}", table);
+
+            Ok(())
+        }
     }
-
-    list_profiles(&ctgen);
-
-    Ok(())
 }
 
 fn list_profiles(ctgen: &CtGen) {
@@ -39,17 +54,5 @@ fn list_profiles(ctgen: &CtGen) {
         }
     } else {
         println!("No profiles found.");
-    }
-}
-
-async fn register_profile_default(ctgen: &mut CtGen) {
-    if let Err(e) = ctgen.set_profile(CONFIG_NAME_DEFAULT, ".").await {
-        println!("Error: {}", e);
-    }
-}
-
-async fn remove_profile_default(ctgen: &mut CtGen) {
-    if let Err(e) = ctgen.remove_profile(CONFIG_NAME_DEFAULT).await {
-        println!("Error: {}", e);
     }
 }
