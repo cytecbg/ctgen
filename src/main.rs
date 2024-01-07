@@ -44,11 +44,13 @@ async fn main() -> Result<()> {
             env_var,
             dsn,
             target_dir,
+            prompt,
             table,
         } => {
             let profile_name = if let Some(p) = profile.as_deref() { p } else { CONFIG_NAME_DEFAULT };
 
             println!("run {} for {:?}", profile_name, table);
+            println!("prompts: {:?}", prompt);
 
             ctgen.set_current_profile(profile_name).await?;
 

@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use std::error::Error;
 
 #[derive(Parser, Debug)]
 #[command(author = "Cytec BG", version, about = "Code Template Generator", long_about = None)]
@@ -36,6 +37,10 @@ pub enum Commands {
         /// Override profile target-dir directive
         target_dir: Option<String>,
 
+        #[arg(long, value_parser = parse_prompt_key_val::<String, String>, number_of_values = 1)]
+        /// Prompt answer override, for example --prompt "dummy=1"
+        prompt: Option<Vec<(String, String)>>,
+
         /// Database table name to generate code templates for
         table: Option<String>,
     },
@@ -63,4 +68,16 @@ pub enum CommandConfig {
         /// Config profile name to remove
         name: String,
     },
+}
+
+pub fn parse_prompt_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
+where
+    T: std::str::FromStr,
+    T::Err: Error + Send + Sync + 'static,
+    U: std::str::FromStr,
+    U::Err: Error + Send + Sync + 'static,
+{
+    let pos = s.find('=').ok_or_else(|| format!("invalid KEY=value: no `=` found in `{}`", s))?;
+
+    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
