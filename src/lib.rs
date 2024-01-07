@@ -1,7 +1,11 @@
-pub mod profile;
 pub mod consts;
 pub mod error;
+pub mod profile;
+pub mod cli;
 
+use crate::consts::*;
+use crate::error::CtGenError;
+use crate::profile::CtGenProfile;
 use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
@@ -9,9 +13,6 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::MAIN_SEPARATOR;
 use tokio::io::AsyncWriteExt;
-use crate::consts::*;
-use crate::error::CtGenError;
-use crate::profile::{CtGenProfile};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGen {
@@ -262,5 +263,3 @@ impl CtGen {
         self.save_profiles().await
     }
 }
-
-

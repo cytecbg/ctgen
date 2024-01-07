@@ -1,10 +1,20 @@
 use anyhow::Result;
-use ctgen::{CtGen};
+use clap::Parser;
+#[allow(unused_imports)]
+use log::{debug, error, log_enabled, info, Level};
+use ctgen::cli::Args;
 use ctgen::consts::CONFIG_NAME_DEFAULT;
+use ctgen::CtGen;
 
 #[tokio::main]
 #[allow(unreachable_code)]
 async fn main() -> Result<()> {
+    env_logger::init();
+
+    let args = Args::parse();
+
+    println!("{:?}", args);
+
     //dotenvy::dotenv()?;
 
     let mut ctgen = CtGen::new().await?;

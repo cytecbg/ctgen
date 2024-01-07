@@ -1,8 +1,8 @@
+use crate::error::CtGenError;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::slice::Iter;
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
-use crate::error::CtGenError;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGenProfile {
@@ -152,4 +152,3 @@ impl CtGenTarget {
         self.formatter.as_deref()
     }
 }
-
