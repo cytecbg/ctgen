@@ -1,7 +1,7 @@
+pub mod cli;
 pub mod consts;
 pub mod error;
 pub mod profile;
-pub mod cli;
 
 use crate::consts::*;
 use crate::error::CtGenError;
@@ -240,7 +240,11 @@ impl CtGen {
         }
 
         // validate content
-        CtGenProfile::load(&fullpath, name).await?.validate().await?;
+        let profile = CtGenProfile::load(&fullpath, name).await?;
+        profile.validate().await?;
+
+        // if no name is given, we use the profile internal name
+        let name = if name.is_empty() { profile.configuration().name() } else { name };
 
         // set profile
         self.profiles.insert(name.to_string(), fullpath.clone());

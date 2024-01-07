@@ -17,15 +17,13 @@ pub enum Commands {
     /// Run code template generator
     Run {
         /// Database table name to generate code templates for
-        table: Option<String>
-    }
+        table: Option<String>,
+    },
 }
 
 impl Default for Commands {
     fn default() -> Self {
-        Commands::Run {
-            table: None
-        }
+        Commands::Run { table: None }
     }
 }
 
@@ -42,13 +40,13 @@ pub enum CommandConfig {
 
         #[arg(default_value = ".")]
         /// Path to Ctgen.toml file
-        path: String
+        path: String,
     },
     /// List all saved config profiles
     List,
     /// Remove a config profile
     Rm {
         /// Config profile name to remove
-        name: String
-    }
+        name: String,
+    },
 }

@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
-#[allow(unused_imports)]
-use log::{debug, error, log_enabled, info, Level};
 use ctgen::cli::{Args, CommandConfig, Commands};
 use ctgen::consts::CONFIG_NAME_DEFAULT;
 use ctgen::CtGen;
+#[allow(unused_imports)]
+use log::{debug, error, info, log_enabled, Level};
 
 #[tokio::main]
 #[allow(unreachable_code)]
@@ -18,27 +18,25 @@ async fn main() -> Result<()> {
     let mut ctgen = CtGen::new().await?;
 
     match args.command {
-        Commands::Config { op } => {
-            match op {
-                CommandConfig::Add { default: _, name, path} => {
-                    let profile_name = if let Some(n) = name.as_deref() {
-                        n
-                    } else {
-                        CONFIG_NAME_DEFAULT
-                    };
+        Commands::Config { op } => match op {
+            CommandConfig::Add { default, name, path } => {
+                let profile_name = if let Some(n) = name.as_deref() {
+                    n
+                } else if default {
+                    CONFIG_NAME_DEFAULT
+                } else {
+                    ""
+                };
 
-                    ctgen.set_profile(profile_name, &path).await
-                }
-                CommandConfig::List => {
-                    list_profiles(&ctgen);
-
-                    Ok(())
-                }
-                CommandConfig::Rm { name} => {
-                    ctgen.remove_profile(&name).await
-                }
+                ctgen.set_profile(profile_name, &path).await
             }
-        }
+            CommandConfig::List => {
+                list_profiles(&ctgen);
+
+                Ok(())
+            }
+            CommandConfig::Rm { name } => ctgen.remove_profile(&name).await,
+        },
         Commands::Run { table } => {
             println!("run for {:?}", table);
 
