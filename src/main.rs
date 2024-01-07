@@ -58,6 +58,12 @@ async fn main() -> Result<()> {
                 ctgen.set_current_profile_overrides(CtGenProfileConfigOverrides::new(env_file, env_var, dsn, target_dir));
             }
 
+            if let Some(prompts) = prompt {
+                for (prompt_id, prompt_answer) in prompts {
+                    ctgen.set_current_profile_prompt_answer(&prompt_id, &prompt_answer);
+                }
+            }
+
             let profile = ctgen.get_current_profile().unwrap();
 
             println!("using profile {}", profile.configuration().name());

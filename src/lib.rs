@@ -269,7 +269,7 @@ impl CtGen {
 
     pub async fn set_current_profile(&mut self, name: &str) -> Result<&CtGenProfile> {
         if let Some(profile_path) = self.profiles.get(name) {
-            let profile = CtGenProfile::load(&profile_path, name).await?;
+            let profile = CtGenProfile::load(profile_path, name).await?;
             profile.validate().await?;
 
             self.current_profile = Some(profile);
@@ -290,5 +290,11 @@ impl CtGen {
 
     pub fn get_current_profile(&self) -> Option<&CtGenProfile> {
         self.current_profile.as_ref()
+    }
+
+    pub fn set_current_profile_prompt_answer(&mut self, prompt: &str, answer: &str) {
+        if let Some(profile) = self.current_profile.as_mut() {
+            profile.set_prompt_answer(prompt, answer);
+        }
     }
 }

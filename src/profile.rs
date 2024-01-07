@@ -9,9 +9,13 @@ pub struct CtGenProfile {
     #[serde(default)]
     name: String,
     profile: CtGenProfileConfig,
-    overrides: Option<CtGenProfileConfigOverrides>,
     prompt: HashMap<String, CtGenPrompt>,
     target: HashMap<String, CtGenTarget>,
+
+    #[serde(skip)]
+    overrides: Option<CtGenProfileConfigOverrides>,
+    #[serde(skip)]
+    prompt_answers: HashMap<String, String>,
 }
 
 impl CtGenProfile {
@@ -46,6 +50,12 @@ impl CtGenProfile {
         self
     }
 
+    pub fn set_prompt_answer(&mut self, prompt_id: &str, prompt_answer: &str) -> &mut Self {
+        self.prompt_answers.insert(prompt_id.to_string(), prompt_answer.to_string());
+
+        self
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -72,6 +82,14 @@ impl CtGenProfile {
 
     pub fn target(&self, target: &str) -> Option<&CtGenTarget> {
         self.target.get(target)
+    }
+
+    pub fn prompt_answer(&self, prompt: &str) -> Option<&String> {
+        self.prompt_answers.get(prompt)
+    }
+
+    pub fn prompt_answers(&self) -> std::collections::hash_map::Iter<'_, String, String> {
+        self.prompt_answers.iter()
     }
 }
 
