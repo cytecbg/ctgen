@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use ctgen::cli::{Args, CommandConfig, Commands};
 use ctgen::consts::CONFIG_NAME_DEFAULT;
+use ctgen::profile::CtGenProfileConfigOverrides;
 use ctgen::CtGen;
 #[allow(unused_imports)]
 use log::{debug, error, info, log_enabled, Level};
@@ -28,7 +29,7 @@ async fn main() -> Result<()> {
                     ""
                 };
 
-                ctgen.set_profile(profile_name, &path).await
+                ctgen.add_profile(profile_name, &path).await
             }
             CommandConfig::List => {
                 list_profiles(&ctgen);
@@ -37,8 +38,27 @@ async fn main() -> Result<()> {
             }
             CommandConfig::Rm { name } => ctgen.remove_profile(&name).await,
         },
-        Commands::Run { table } => {
-            println!("run for {:?}", table);
+        Commands::Run {
+            profile,
+            env_file,
+            env_var,
+            dsn,
+            target_dir,
+            table,
+        } => {
+            let profile_name = if let Some(p) = profile.as_deref() { p } else { CONFIG_NAME_DEFAULT };
+
+            println!("run {} for {:?}", profile_name, table);
+
+            ctgen.set_current_profile(profile_name).await?;
+
+            if env_file.is_some() || env_var.is_some() || dsn.is_some() || target_dir.is_some() {
+                ctgen.set_current_profile_overrides(CtGenProfileConfigOverrides::new(env_file, env_var, dsn, target_dir));
+            }
+
+            let profile = ctgen.get_current_profile().unwrap();
+
+            println!("using profile {}", profile.configuration().name());
 
             Ok(())
         }

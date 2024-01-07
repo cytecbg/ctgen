@@ -9,6 +9,7 @@ pub struct CtGenProfile {
     #[serde(default)]
     name: String,
     profile: CtGenProfileConfig,
+    overrides: Option<CtGenProfileConfigOverrides>,
     prompt: HashMap<String, CtGenPrompt>,
     target: HashMap<String, CtGenTarget>,
 }
@@ -28,11 +29,19 @@ impl CtGenProfile {
     }
 
     pub async fn validate(&self) -> Result<()> {
+        // TODO
+
         Ok(())
     }
 
     pub fn set_name(&mut self, name: &str) -> &mut Self {
         self.name = name.to_string();
+
+        self
+    }
+
+    pub fn set_overrides(&mut self, overrides: CtGenProfileConfigOverrides) -> &mut Self {
+        self.overrides = Some(overrides);
 
         self
     }
@@ -43,6 +52,10 @@ impl CtGenProfile {
 
     pub fn configuration(&self) -> &CtGenProfileConfig {
         &self.profile
+    }
+
+    pub fn overrides(&self) -> Option<&CtGenProfileConfigOverrides> {
+        self.overrides.as_ref()
     }
 
     pub fn prompts(&self) -> Iter<'_, String> {
@@ -107,6 +120,37 @@ impl CtGenProfileConfig {
     }
     pub fn targets(&self) -> &Vec<String> {
         &self.targets
+    }
+}
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct CtGenProfileConfigOverrides {
+    env_file: Option<String>,
+    env_var: Option<String>,
+    dsn: Option<String>,
+    target_dir: Option<String>,
+}
+
+impl CtGenProfileConfigOverrides {
+    pub fn new(env_file: Option<String>, env_var: Option<String>, dsn: Option<String>, target_dir: Option<String>) -> Self {
+        Self {
+            env_file,
+            env_var,
+            dsn,
+            target_dir,
+        }
+    }
+    pub fn env_file(&self) -> Option<&String> {
+        self.env_file.as_ref()
+    }
+    pub fn env_var(&self) -> Option<&String> {
+        self.env_var.as_ref()
+    }
+    pub fn dsn(&self) -> Option<&String> {
+        self.dsn.as_ref()
+    }
+    pub fn target_dir(&self) -> Option<&String> {
+        self.target_dir.as_ref()
     }
 }
 

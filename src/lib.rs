@@ -5,7 +5,7 @@ pub mod profile;
 
 use crate::consts::*;
 use crate::error::CtGenError;
-use crate::profile::CtGenProfile;
+use crate::profile::{CtGenProfile, CtGenProfileConfigOverrides};
 use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
@@ -208,8 +208,8 @@ impl CtGen {
         &self.profiles
     }
 
-    /// Set a new profile or replace existing
-    pub async fn set_profile(&mut self, name: &str, path: &str) -> Result<()> {
+    /// Add a new profile or replace existing
+    pub async fn add_profile(&mut self, name: &str, path: &str) -> Result<()> {
         // validate name
         let regex =
             Regex::new(CONFIG_NAME_PATTERN).map_err(|e| CtGenError::ValidationError(format!("Failed to compile regex pattern: {}", e)))?;
@@ -265,5 +265,30 @@ impl CtGen {
         }
 
         self.save_profiles().await
+    }
+
+    pub async fn set_current_profile(&mut self, name: &str) -> Result<&CtGenProfile> {
+        if let Some(profile_path) = self.profiles.get(name) {
+            let profile = CtGenProfile::load(&profile_path, name).await?;
+            profile.validate().await?;
+
+            self.current_profile = Some(profile);
+
+            self.current_profile
+                .as_ref()
+                .ok_or(CtGenError::ValidationError("Invalid profile. No such profile found".to_string()).into())
+        } else {
+            Err(CtGenError::ValidationError("Invalid profile name. No such profile found".to_string()).into())
+        }
+    }
+
+    pub fn set_current_profile_overrides(&mut self, overrides: CtGenProfileConfigOverrides) {
+        if let Some(profile) = self.current_profile.as_mut() {
+            profile.set_overrides(overrides);
+        }
+    }
+
+    pub fn get_current_profile(&self) -> Option<&CtGenProfile> {
+        self.current_profile.as_ref()
     }
 }

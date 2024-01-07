@@ -16,15 +16,29 @@ pub enum Commands {
     },
     /// Run code template generator
     Run {
+        #[arg(long, default_value = "default")]
+        /// Config profile to use for this run
+        profile: Option<String>,
+
+        #[arg(long, conflicts_with = "dsn")]
+        /// Override profile env-file directive
+        env_file: Option<String>,
+
+        #[arg(long, conflicts_with = "dsn")]
+        /// Override profile env-var directive
+        env_var: Option<String>,
+
+        #[arg(long)]
+        /// Override profile DSN directive
+        dsn: Option<String>,
+
+        #[arg(long)]
+        /// Override profile target-dir directive
+        target_dir: Option<String>,
+
         /// Database table name to generate code templates for
         table: Option<String>,
     },
-}
-
-impl Default for Commands {
-    fn default() -> Self {
-        Commands::Run { table: None }
-    }
 }
 
 #[derive(Subcommand, Debug)]
