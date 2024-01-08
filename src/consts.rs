@@ -4,3 +4,5 @@ pub const CONFIG_NAME_DEFAULT: &str = "default";
 pub const CONFIG_NAME_PATTERN: &str = r"^[a-zA-Z-_]+$";
 
 pub const PROFILE_DEFAULT_FILENAME: &str = "Ctgen.toml";
+
+pub const FILE_EXT_RHAI: &str = ".rhai";

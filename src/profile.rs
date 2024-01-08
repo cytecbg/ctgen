@@ -14,11 +14,13 @@ pub struct CtGenProfile {
     prompt: HashMap<String, CtGenPrompt>,
     target: HashMap<String, CtGenTarget>,
 
+    /// Canonical context dir
     #[serde(skip)]
     context_dir: String,
 }
 
 impl CtGenProfile {
+    /// Load profile from .toml file, validate and initialize
     pub async fn load(file: &str, name: &str) -> Result<Self> {
         match tokio::fs::read_to_string(file).await {
             Ok(c) => {
@@ -43,24 +45,17 @@ impl CtGenProfile {
         }
     }
 
+    /// Check declared paths validity
     pub async fn validate(&self) -> Result<()> {
         // validate templates dir existence and read permissions
-        let canonical_templates_dir = if self.configuration().templates_dir().is_empty() || self.configuration().templates_dir() == "." {
-            self.context_dir().to_string()
-        } else {
-            CtGen::get_filepath(self.context_dir(), self.configuration().templates_dir())
-        };
+        let canonical_templates_dir = self.templates_dir();
 
         if !CtGen::file_exists(&canonical_templates_dir).await {
             return Err(CtGenError::ValidationError("Invalid templates-dir specified.".to_string()).into());
         }
 
         // validate scripts dir existence and read permissions
-        let canonical_scripts_dir = if self.configuration().scripts_dir().is_empty() || self.configuration().scripts_dir() == "." {
-            self.context_dir().to_string()
-        } else {
-            CtGen::get_filepath(self.context_dir(), self.configuration().scripts_dir())
-        };
+        let canonical_scripts_dir = self.scripts_dir();
 
         if !CtGen::file_exists(&canonical_scripts_dir).await {
             return Err(CtGenError::ValidationError("Invalid scripts-dir specified.".to_string()).into());
@@ -80,42 +75,69 @@ impl CtGenProfile {
         Ok(())
     }
 
+    /// Set profile given name
     fn set_name(&mut self, name: &str) -> &mut Self {
         self.name = name.to_string();
 
         self
     }
 
+    /// Set context directory. Used to build templates and scripts paths.
     fn set_context_dir(&mut self, context_dir: &str) -> &mut Self {
         self.context_dir = context_dir.to_string();
 
         self
     }
 
+    /// Get the profile given name
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Canonical context directory; The directory containing the profile configuration file.
     pub fn context_dir(&self) -> &str {
         &self.context_dir
     }
 
+    /// Canonical templates directory
+    pub fn templates_dir(&self) -> String {
+        if self.configuration().templates_dir().is_empty() || self.configuration().templates_dir() == "." {
+            self.context_dir().to_string()
+        } else {
+            CtGen::get_filepath(self.context_dir(), self.configuration().templates_dir())
+        }
+    }
+
+    /// Canonical scripts directory
+    pub fn scripts_dir(&self) -> String {
+        if self.configuration().scripts_dir().is_empty() || self.configuration().scripts_dir() == "." {
+            self.context_dir().to_string()
+        } else {
+            CtGen::get_filepath(self.context_dir(), self.configuration().scripts_dir())
+        }
+    }
+
+    /// Profile config
     pub fn configuration(&self) -> &CtGenProfileConfig {
         &self.profile
     }
 
+    /// Profile prompts
     pub fn prompts(&self) -> Iter<'_, String> {
         self.profile.prompts.iter()
     }
 
+    /// Profile prompt by name
     pub fn prompt(&self, prompt: &str) -> Option<&CtGenPrompt> {
         self.prompt.get(prompt)
     }
 
+    /// Profile targets
     pub fn targets(&self) -> Iter<'_, String> {
         self.profile.targets.iter()
     }
 
+    /// Profile target by name
     pub fn target(&self, target: &str) -> Option<&CtGenTarget> {
         self.target.get(target)
     }

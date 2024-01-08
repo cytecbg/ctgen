@@ -17,8 +17,9 @@ regex = "^1"
 indexmap = { version = "^2", features = ["serde"] }
 serde_json = "^1"
 serde = { version = "^1", features = ["derive"] }
-handlebars = { version = "^5", features = ["dir_source"] }
-handlebars-inflector = "^0.2.0"
-handlebars-concat = "^0.2.0"
 database-reflection = { version = "^0", features = ["mariadb"] }
 sqlx = { version = "^0.6", features = ["runtime-tokio-rustls", "mysql"]}
+handlebars = { version = "^5", features = ["dir_source", "script_helper"] }
+handlebars-inflector = "^0.2.0"
+handlebars-concat = "^0.2.0"
+walkdir = "^2"

@@ -1,23 +1,31 @@
 pub mod context;
 pub mod prompt;
 
+use crate::consts::FILE_EXT_RHAI;
 use crate::error::CtGenError;
-use crate::profile::{CtGenProfile, CtGenProfileConfigOverrides};
+use crate::profile::{CtGenProfile, CtGenProfileConfigOverrides, CtGenTarget};
 use crate::task::context::CtGenTaskContext;
 use crate::task::prompt::CtGenTaskPrompt;
 use crate::CtGen;
 use anyhow::Result;
 use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter;
 use database_reflection::adapter::reflection_adapter::{Connected, ReflectionAdapter, ReflectionAdapterUninitialized};
+use handlebars::{DirectorySourceOptions, Handlebars};
+use handlebars_concat::HandlebarsConcat;
+use handlebars_inflector::HandlebarsInflector;
 use serde_json::Value;
 use sqlx::MySql;
 use std::collections::HashMap;
 use std::env;
+use std::path::Path;
 use std::slice::Iter;
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncWriteExt;
 use tokio::join;
+use walkdir::WalkDir;
 
 #[derive(Debug)]
-pub struct CtGenTask {
+pub struct CtGenTask<'a> {
     profile: CtGenProfile,
     overrides: Option<CtGenProfileConfigOverrides>,
     prompts: Vec<CtGenTaskPrompt>,
@@ -29,9 +37,10 @@ pub struct CtGenTask {
     target_dir: String,
 
     context: Option<CtGenTaskContext>,
+    renderer: Handlebars<'a>,
 }
 
-impl CtGenTask {
+impl CtGenTask<'_> {
     pub async fn new(
         profile: &CtGenProfile,
         context_dir: &str,
@@ -128,45 +137,10 @@ impl CtGenTask {
             return Err(CtGenError::ValidationError("Invalid target-dir specified.".to_string()).into());
         }
 
-        // // validate templates dir existence and read permissions
-        // let canonical_templates_dir =
-        //     if profile.configuration().templates_dir().is_empty() || profile.configuration().templates_dir() == "." {
-        //         profile.context_dir().to_string() // profile context_dir is not the same as task context_dir
-        //     } else {
-        //         CtGen::get_filepath(profile.context_dir(), profile.configuration().templates_dir())
-        //     };
-        //
-        // if !CtGen::file_exists(&canonical_templates_dir).await {
-        //     return Err(CtGenError::ValidationError("Invalid templates-dir specified.".to_string()).into());
-        // }
-        //
-        // // validate scripts dir existence and read permissions
-        // let canonical_scripts_dir = if profile.configuration().scripts_dir().is_empty() || profile.configuration().scripts_dir() == "." {
-        //     profile.context_dir().to_string()
-        // } else {
-        //     CtGen::get_filepath(profile.context_dir(), profile.configuration().scripts_dir())
-        // };
-        //
-        // if !CtGen::file_exists(&canonical_scripts_dir).await {
-        //     return Err(CtGenError::ValidationError("Invalid scripts-dir specified.".to_string()).into());
-        // }
-        //
-        // // validate targets template existence
-        // for target_name in profile.targets() {
-        //     let target = profile.target(target_name).unwrap();
-        //
-        //     let template_canonical_path = CtGen::get_filepath(&canonical_templates_dir, format!("{}.hbs", target.template()).as_str());
-        //
-        //     if !CtGen::file_exists(&template_canonical_path).await {
-        //         return Err(CtGenError::ValidationError(format!("Template file not found for target {}.", target_name)).into());
-        //     }
-        // }
-
         // prepare context data
         let reflection_adapter = MariadbInnodbReflectionAdapter::new(&dsn).connect().await?;
 
         // prepare prompts
-
         let mut prompts: Vec<CtGenTaskPrompt> = Vec::new();
 
         let mut pre_create_context = true;
@@ -197,6 +171,7 @@ impl CtGenTask {
             });
         }
 
+        // prepare context
         let mut context: Option<CtGenTaskContext> = None;
 
         if pre_create_context {
@@ -204,6 +179,47 @@ impl CtGenTask {
 
             context = Some(CtGenTaskContext::new(database, &table.cloned().unwrap())?);
         }
+
+        // init renderer
+        let mut handlebars = Handlebars::new();
+
+        handlebars.register_templates_directory(profile.templates_dir(), DirectorySourceOptions::default())?;
+
+        let scripts_dir = profile.scripts_dir();
+        let walker = WalkDir::new(&scripts_dir);
+        let scripts_dir_iter = walker
+            .min_depth(1)
+            .into_iter()
+            .filter_map(|e| e.ok().map(|e| e.into_path()))
+            .filter(|tpl_path| tpl_path.to_string_lossy().ends_with(FILE_EXT_RHAI))
+            .filter(|tpl_path| {
+                tpl_path
+                    .file_stem()
+                    .map(|stem| !stem.to_string_lossy().starts_with('.'))
+                    .unwrap_or(false)
+            })
+            .filter_map(|script_path| {
+                script_path
+                    .strip_prefix(&scripts_dir)
+                    .ok()
+                    .map(|script_canonical_name| {
+                        let script_name = script_canonical_name
+                            .components()
+                            .map(|component| component.as_os_str().to_string_lossy())
+                            .collect::<Vec<_>>()
+                            .join("/");
+
+                        script_name.strip_suffix(FILE_EXT_RHAI).map(|s| s.to_owned()).unwrap_or(script_name)
+                    })
+                    .map(|script_canonical_name| (script_canonical_name, script_path))
+            });
+
+        for (script_canonical_name, script_path) in scripts_dir_iter {
+            handlebars.register_script_helper_file(&script_canonical_name, script_path)?;
+        }
+
+        handlebars.register_helper("concat", Box::new(HandlebarsConcat));
+        handlebars.register_helper("inflect", Box::new(HandlebarsInflector));
 
         Ok(CtGenTask {
             profile: profile.clone(),
@@ -215,6 +231,7 @@ impl CtGenTask {
             context_dir: context_dir.to_string(),
             target_dir: canonical_target_dir,
             context,
+            renderer: handlebars,
         })
     }
 
@@ -300,6 +317,9 @@ impl CtGenTask {
         Ok(())
     }
 
+
+
+    /// Make sure every prompt answer is sent to the context
     async fn update_context(&mut self) -> Result<()> {
         if let Some(context) = self.context.as_mut() {
             for (prompt_id, prompt_answer) in self.prompt_answers.iter() {
@@ -311,5 +331,72 @@ impl CtGenTask {
         }
 
         Ok(())
+    }
+
+    /// Check if we are ready to render shit
+    pub fn is_context_ready(&self) -> bool {
+        self.context.is_some() && self.prompts_unanswered().is_empty()
+    }
+
+    /// Direct rendering
+    pub fn render(&self, template_content: &str) -> Result<String> {
+        Ok(self.renderer.render_template(template_content, &self.context)?)
+    }
+
+    /// Template rendering
+    pub fn render_template(&self, template_name: &str) -> Result<String> {
+        Ok(self.renderer.render(template_name, &self.context)?)
+    }
+
+    /// Render target by target template and target output file
+    pub async fn render_target(&self, target: &CtGenTarget) -> Result<()> {
+        let output = self.render_template(target.template())?;
+
+        let target_file = if target.target().contains("{{") && target.target().contains("}}") {
+            self.render(target.target())? // there could be variables in the target
+        } else {
+            target.target().to_string() // target is a literal
+        };
+
+        // full canonical path to output file
+        let canonical_target_file = CtGen::get_filepath(self.target_dir(), &target_file);
+
+        // init sub-directories if necessary
+        CtGen::init_config_dir(Path::new(&canonical_target_file).parent().unwrap().to_string_lossy().as_ref()).await?;
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(canonical_target_file)
+            .await?;
+        file.write_all(output.as_bytes()).await?;
+        file.flush().await?;
+
+        Ok(())
+    }
+
+    pub async fn run(&self) -> Result<()> {
+        if !self.is_context_ready() {
+            return Err(CtGenError::RuntimeError("Context not ready to run all render tasks.".to_string()).into());
+        }
+
+        for target_name in self.profile.targets() {
+            if let Some(target) = self.profile.target(target_name) {
+                self.render_target(target).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Get context data
+    pub fn context(&self) -> Option<&CtGenTaskContext> {
+        self.context.as_ref()
+    }
+
+    /// Get renderer instance
+    pub fn renderer(&self) -> &Handlebars<'_> {
+        &self.renderer
     }
 }

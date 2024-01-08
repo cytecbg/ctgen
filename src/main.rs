@@ -162,7 +162,7 @@ async fn main() -> Result<()> {
                 }
             }
 
-            println!("{:?}", task);
+            println!("{:?}", task.context());
 
             //TODO
 
@@ -171,6 +171,7 @@ async fn main() -> Result<()> {
     }
 }
 
+/// List profiles TODO make pretty
 fn list_profiles(ctgen: &CtGen) {
     if !ctgen.get_profiles().is_empty() {
         for (profile_name, profile_file) in ctgen.get_profiles().iter() {
@@ -179,4 +180,8 @@ fn list_profiles(ctgen: &CtGen) {
     } else {
         println!("No profiles found.");
     }
+}
+
+async fn prompt(prompt_text: &str, options: &Vec<String>) -> Value {
+    Value::from("")
 }
