@@ -142,11 +142,9 @@ async fn main() -> Result<()> {
                 }
             }
 
-            let profile = ctgen.get_current_profile().unwrap();
-
             let context_dir = CtGen::get_realpath(&CtGen::get_current_working_dir()?).await?;
 
-            let task = ctgen.create_task(&context_dir).await?;
+            let task = ctgen.create_task(&context_dir, table.as_ref()).await?;
 
             println!("{:?}", task);
 

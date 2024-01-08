@@ -1,21 +1,30 @@
+pub mod context;
+pub mod prompt;
+
 use crate::error::CtGenError;
 use crate::profile::CtGenProfile;
 use crate::CtGen;
 use anyhow::Result;
-use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter as DbReflection;
-use database_reflection::adapter::reflection_adapter::{ReflectionAdapter, ReflectionAdapterUninitialized};
-use serde::{Deserialize, Serialize};
+use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter;
+use database_reflection::adapter::reflection_adapter::{Connected, ReflectionAdapter, ReflectionAdapterUninitialized};
 use std::env;
+use std::slice::Iter;
+use sqlx::MySql;
 use tokio::join;
+use crate::task::prompt::CtGenTaskPrompt;
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct CtGenTask {
     profile: CtGenProfile,
+    reflection_adapter: MariadbInnodbReflectionAdapter<Connected<MySql>>,
+    table: Option<String>,
     context_dir: String,
+    target_dir: String,
+    prompts: Vec<CtGenTaskPrompt>
 }
 
 impl CtGenTask {
-    pub async fn new(profile: &CtGenProfile, context_dir: &str) -> Result<Self> {
+    pub async fn new(profile: &CtGenProfile, context_dir: &str, table: Option<&String>) -> Result<Self> {
         let config = profile.configuration();
         let overrides = profile.overrides();
 
@@ -141,15 +150,67 @@ impl CtGenTask {
         // }
 
         // prepare context data
-        let reflection_adapter = DbReflection::new(&dsn).connect().await?;
-
-        println!("{}", reflection_adapter.get_database_name());
+        let reflection_adapter = MariadbInnodbReflectionAdapter::new(&dsn).connect().await?;
 
         // prepare prompts
 
+        let mut prompts: Vec<CtGenTaskPrompt> = Vec::new();
+
+        if reflection_adapter.get_database_name().is_empty() {
+            // dsn has no database name, must add prompt
+
+            prompts.push(CtGenTaskPrompt::PromptDatabase);
+        }
+
+        if table.is_none() {
+            // no task subject given, must add prompt
+
+            prompts.push(CtGenTaskPrompt::PromptTable);
+        }
+
+        for prompt_name in profile.prompts() {
+            if profile.prompt_answer(prompt_name).is_none() {
+                prompts.push(CtGenTaskPrompt::PromptGeneric(profile.prompt(prompt_name).unwrap().clone()));
+            }
+        }
+
         Ok(CtGenTask {
             profile: profile.clone(),
+            reflection_adapter,
+            table: table.cloned(),
             context_dir: context_dir.to_string(),
+            target_dir: canonical_target_dir,
+            prompts
         })
+    }
+
+    /// Template profile
+    pub fn profile(&self) -> &CtGenProfile {
+        &self.profile
+    }
+
+    /// Reflection adapter
+    pub fn reflection_adapter(&self) -> &MariadbInnodbReflectionAdapter<Connected<MySql>> {
+        &self.reflection_adapter
+    }
+
+    /// Task subject
+    pub fn table(&self) -> Option<&String> {
+        self.table.as_ref()
+    }
+
+    /// Canonical context directory
+    pub fn context_dir(&self) -> &str {
+        &self.context_dir
+    }
+
+    /// Canonical target directory
+    pub fn target_dir(&self) -> &str {
+        &self.target_dir
+    }
+
+    /// List of unanswered prompts in order of appearance
+    pub fn prompts(&self) -> Iter<'_, CtGenTaskPrompt> {
+        self.prompts.iter()
     }
 }

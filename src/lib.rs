@@ -10,14 +10,12 @@ use crate::task::CtGenTask;
 use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::MAIN_SEPARATOR;
 use tokio::io::AsyncWriteExt;
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug)]
 pub struct CtGen {
-    config_path: String,
     config_file: String,
     profiles: IndexMap<String, String>,
     current_profile: Option<CtGenProfile>,
@@ -43,7 +41,6 @@ impl CtGen {
         let profiles = CtGen::load_profiles(&config_file).await?;
 
         Ok(Self {
-            config_path,
             config_file,
             profiles,
             ..Default::default()
@@ -299,11 +296,11 @@ impl CtGen {
         self.current_profile.as_ref()
     }
 
-    pub async fn create_task(&self, context_dir: &str) -> Result<CtGenTask> {
+    pub async fn create_task(&self, context_dir: &str, table: Option<&String>) -> Result<CtGenTask> {
         let real_context_path = CtGen::get_realpath(context_dir).await?;
 
         if let Some(profile) = self.current_profile.as_ref() {
-            return Ok(CtGenTask::new(profile, &real_context_path).await?);
+            return Ok(CtGenTask::new(profile, &real_context_path, table).await?);
         }
 
         Err(CtGenError::RuntimeError("No current profile".to_string()).into())
