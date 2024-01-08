@@ -3,16 +3,16 @@ name = "test"
 env-file = ".env"
 env-var = "DB_CONNECTION"
 dsn = ""
-target-dir = "."
+target-dir = "target"
 templates-dir = "assets/templates"
 scripts-dir = "assets/scripts"
 prompts = [ "dummy" ]
 targets = [ "test" ]
 
 [prompt.dummy]
-prompt = "Would you like to proceed?"
+prompt = "Do you like pizza?"
 options = { 1 = "Yes", 0 = "No" }
 
 [target.test]
 template = "test"
-target = "target/render/{{table/name}}.md"
+target = "render/{{table/name}}.md"

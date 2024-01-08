@@ -1,10 +1,12 @@
 pub mod consts;
 pub mod error;
 pub mod profile;
+pub mod task;
 
 use crate::consts::*;
 use crate::error::CtGenError;
 use crate::profile::{CtGenProfile, CtGenProfileConfigOverrides};
+use crate::task::CtGenTask;
 use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
@@ -142,7 +144,7 @@ impl CtGen {
     }
 
     /// Create all necessary directories to store profiles config
-    async fn init_config_dir(config_path: &str) -> Result<()> {
+    pub async fn init_config_dir(config_path: &str) -> Result<()> {
         Ok(tokio::fs::create_dir_all(&config_path)
             .await
             .map_err(|e| CtGenError::InitError(format!("Cannot create config directory: {}", e)))?)
@@ -287,13 +289,23 @@ impl CtGen {
         }
     }
 
-    pub fn get_current_profile(&self) -> Option<&CtGenProfile> {
-        self.current_profile.as_ref()
-    }
-
     pub fn set_current_profile_prompt_answer(&mut self, prompt: &str, answer: &str) {
         if let Some(profile) = self.current_profile.as_mut() {
             profile.set_prompt_answer(prompt, answer);
         }
+    }
+
+    pub fn get_current_profile(&self) -> Option<&CtGenProfile> {
+        self.current_profile.as_ref()
+    }
+
+    pub async fn create_task(&self, context_dir: &str) -> Result<CtGenTask> {
+        let real_context_path = CtGen::get_realpath(context_dir).await?;
+
+        if let Some(profile) = self.current_profile.as_ref() {
+            return Ok(CtGenTask::new(profile, &real_context_path).await?);
+        }
+
+        Err(CtGenError::RuntimeError("No current profile".to_string()).into())
     }
 }

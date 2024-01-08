@@ -2,7 +2,9 @@ use crate::error::CtGenError;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
 use std::slice::Iter;
+use crate::CtGen;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGenProfile {
@@ -12,6 +14,8 @@ pub struct CtGenProfile {
     prompt: HashMap<String, CtGenPrompt>,
     target: HashMap<String, CtGenTarget>,
 
+    #[serde(skip)]
+    context_dir: String,
     #[serde(skip)]
     overrides: Option<CtGenProfileConfigOverrides>,
     #[serde(skip)]
@@ -26,6 +30,17 @@ impl CtGenProfile {
                     toml::from_str(&c).map_err(|e| CtGenError::RuntimeError(format!("Failed to parse profile config: {}", e)))?;
                 profile.set_name(name);
 
+                let context_dir = Path::new(file)
+                    .parent()
+                    .ok_or(CtGenError::RuntimeError(format!("Failed to parse dirname from path: {}", file)))?
+                    .to_str()
+                    .ok_or(CtGenError::RuntimeError(format!(
+                        "Failed to parse UTF-8 dirname from path: {}",
+                        file
+                    )))?;
+
+                profile.set_context_dir(context_dir);
+
                 Ok(profile)
             }
             Err(e) => Err(CtGenError::RuntimeError(format!("Failed to load profile config: {}", e)).into()),
@@ -33,13 +48,51 @@ impl CtGenProfile {
     }
 
     pub async fn validate(&self) -> Result<()> {
-        // TODO
+        // validate templates dir existence and read permissions
+        let canonical_templates_dir =
+            if self.configuration().templates_dir().is_empty() || self.configuration().templates_dir() == "." {
+                self.context_dir().to_string()
+            } else {
+                CtGen::get_filepath(self.context_dir(), self.configuration().templates_dir())
+            };
+
+        if !CtGen::file_exists(&canonical_templates_dir).await {
+            return Err(CtGenError::ValidationError("Invalid templates-dir specified.".to_string()).into());
+        }
+
+        // validate scripts dir existence and read permissions
+        let canonical_scripts_dir = if self.configuration().scripts_dir().is_empty() || self.configuration().scripts_dir() == "." {
+            self.context_dir().to_string()
+        } else {
+            CtGen::get_filepath(self.context_dir(), self.configuration().scripts_dir())
+        };
+
+        if !CtGen::file_exists(&canonical_scripts_dir).await {
+            return Err(CtGenError::ValidationError("Invalid scripts-dir specified.".to_string()).into());
+        }
+
+        // validate targets template existence
+        for target_name in self.targets() {
+            let target = self.target(target_name).unwrap();
+
+            let template_canonical_path = CtGen::get_filepath(&canonical_templates_dir, format!("{}.hbs", target.template()).as_str());
+
+            if !CtGen::file_exists(&template_canonical_path).await {
+                return Err(CtGenError::ValidationError(format!("Template file not found for target {}.", target_name)).into());
+            }
+        }
 
         Ok(())
     }
 
-    pub fn set_name(&mut self, name: &str) -> &mut Self {
+    fn set_name(&mut self, name: &str) -> &mut Self {
         self.name = name.to_string();
+
+        self
+    }
+
+    fn set_context_dir(&mut self, context_dir: &str) -> &mut Self {
+        self.context_dir = context_dir.to_string();
 
         self
     }
@@ -59,6 +112,8 @@ impl CtGenProfile {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn context_dir(&self) -> &str { &self.context_dir }
 
     pub fn configuration(&self) -> &CtGenProfileConfig {
         &self.profile

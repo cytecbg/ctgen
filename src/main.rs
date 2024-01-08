@@ -1,11 +1,10 @@
 use anyhow::Result;
+use clap::{Parser, Subcommand};
 use ctgen::consts::CONFIG_NAME_DEFAULT;
 use ctgen::profile::CtGenProfileConfigOverrides;
 use ctgen::CtGen;
 #[allow(unused_imports)]
 use log::{debug, error, info, log_enabled, Level};
-
-use clap::{Parser, Subcommand};
 use std::error::Error;
 
 #[derive(Parser, Debug)]
@@ -78,11 +77,11 @@ pub enum CommandConfig {
 }
 
 pub fn parse_prompt_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
-    where
-        T: std::str::FromStr,
-        T::Err: Error + Send + Sync + 'static,
-        U: std::str::FromStr,
-        U::Err: Error + Send + Sync + 'static,
+where
+    T: std::str::FromStr,
+    T::Err: Error + Send + Sync + 'static,
+    U: std::str::FromStr,
+    U::Err: Error + Send + Sync + 'static,
 {
     let pos = s.find('=').ok_or_else(|| format!("invalid KEY=value: no `=` found in `{}`", s))?;
 
@@ -144,6 +143,12 @@ async fn main() -> Result<()> {
             }
 
             let profile = ctgen.get_current_profile().unwrap();
+
+            let context_dir = CtGen::get_realpath(&CtGen::get_current_working_dir()?).await?;
+
+            let task = ctgen.create_task(&context_dir).await?;
+
+            println!("{:?}", task);
 
             //TODO
 
