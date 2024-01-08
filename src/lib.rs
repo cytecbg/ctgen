@@ -280,27 +280,20 @@ impl CtGen {
         }
     }
 
-    pub fn set_current_profile_overrides(&mut self, overrides: CtGenProfileConfigOverrides) {
-        if let Some(profile) = self.current_profile.as_mut() {
-            profile.set_overrides(overrides);
-        }
-    }
-
-    pub fn set_current_profile_prompt_answer(&mut self, prompt: &str, answer: &str) {
-        if let Some(profile) = self.current_profile.as_mut() {
-            profile.set_prompt_answer(prompt, answer);
-        }
-    }
-
     pub fn get_current_profile(&self) -> Option<&CtGenProfile> {
         self.current_profile.as_ref()
     }
 
-    pub async fn create_task(&self, context_dir: &str, table: Option<&String>) -> Result<CtGenTask> {
+    pub async fn create_task(
+        &self,
+        context_dir: &str,
+        table: Option<&String>,
+        profile_overrides: Option<CtGenProfileConfigOverrides>,
+    ) -> Result<CtGenTask> {
         let real_context_path = CtGen::get_realpath(context_dir).await?;
 
         if let Some(profile) = self.current_profile.as_ref() {
-            return Ok(CtGenTask::new(profile, &real_context_path, table).await?);
+            return CtGenTask::new(profile, &real_context_path, table, profile_overrides).await;
         }
 
         Err(CtGenError::RuntimeError("No current profile".to_string()).into())

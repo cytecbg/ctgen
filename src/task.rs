@@ -2,31 +2,44 @@ pub mod context;
 pub mod prompt;
 
 use crate::error::CtGenError;
-use crate::profile::CtGenProfile;
+use crate::profile::{CtGenProfile, CtGenProfileConfigOverrides};
+use crate::task::context::CtGenTaskContext;
+use crate::task::prompt::CtGenTaskPrompt;
 use crate::CtGen;
 use anyhow::Result;
 use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter;
 use database_reflection::adapter::reflection_adapter::{Connected, ReflectionAdapter, ReflectionAdapterUninitialized};
+use serde_json::Value;
+use sqlx::MySql;
+use std::collections::HashMap;
 use std::env;
 use std::slice::Iter;
-use sqlx::MySql;
 use tokio::join;
-use crate::task::prompt::CtGenTaskPrompt;
 
 #[derive(Debug)]
 pub struct CtGenTask {
     profile: CtGenProfile,
+    overrides: Option<CtGenProfileConfigOverrides>,
+    prompts: Vec<CtGenTaskPrompt>,
+    prompt_answers: HashMap<String, Value>,
+
     reflection_adapter: MariadbInnodbReflectionAdapter<Connected<MySql>>,
     table: Option<String>,
     context_dir: String,
     target_dir: String,
-    prompts: Vec<CtGenTaskPrompt>
+
+    context: Option<CtGenTaskContext>,
 }
 
 impl CtGenTask {
-    pub async fn new(profile: &CtGenProfile, context_dir: &str, table: Option<&String>) -> Result<Self> {
+    pub async fn new(
+        profile: &CtGenProfile,
+        context_dir: &str,
+        table: Option<&String>,
+        profile_overrides: Option<CtGenProfileConfigOverrides>,
+    ) -> Result<Self> {
         let config = profile.configuration();
-        let overrides = profile.overrides();
+        let overrides = profile_overrides.as_ref();
 
         let env_file = if let Some(overrides) = overrides {
             if let Some(env_file) = overrides.env_file() {
@@ -156,37 +169,63 @@ impl CtGenTask {
 
         let mut prompts: Vec<CtGenTaskPrompt> = Vec::new();
 
+        let mut pre_create_context = true;
+
         if reflection_adapter.get_database_name().is_empty() {
             // dsn has no database name, must add prompt
-
             prompts.push(CtGenTaskPrompt::PromptDatabase);
+            pre_create_context = false;
         }
 
         if table.is_none() {
             // no task subject given, must add prompt
-
             prompts.push(CtGenTaskPrompt::PromptTable);
+            pre_create_context = false;
+        } else {
+            // check if table exists
+            let table = table.cloned().unwrap();
+            let tables = reflection_adapter.list_table_names().await?;
+            if !tables.contains(&table) {
+                return Err(CtGenError::ValidationError("Table does not exist".to_string()).into());
+            }
         }
 
         for prompt_name in profile.prompts() {
-            if profile.prompt_answer(prompt_name).is_none() {
-                prompts.push(CtGenTaskPrompt::PromptGeneric(profile.prompt(prompt_name).unwrap().clone()));
-            }
+            prompts.push(CtGenTaskPrompt::PromptGeneric {
+                prompt_id: prompt_name.to_string(),
+                prompt_data: profile.prompt(prompt_name).unwrap().clone(),
+            });
+        }
+
+        let mut context: Option<CtGenTaskContext> = None;
+
+        if pre_create_context {
+            let database = reflection_adapter.get_reflection().await?;
+
+            context = Some(CtGenTaskContext::new(database, &table.cloned().unwrap())?);
         }
 
         Ok(CtGenTask {
             profile: profile.clone(),
+            overrides: profile_overrides,
+            prompts,
+            prompt_answers: HashMap::new(),
             reflection_adapter,
             table: table.cloned(),
             context_dir: context_dir.to_string(),
             target_dir: canonical_target_dir,
-            prompts
+            context,
         })
     }
 
     /// Template profile
     pub fn profile(&self) -> &CtGenProfile {
         &self.profile
+    }
+
+    /// Get profile override properties
+    pub fn overrides(&self) -> Option<&CtGenProfileConfigOverrides> {
+        self.overrides.as_ref()
     }
 
     /// Reflection adapter
@@ -209,8 +248,68 @@ impl CtGenTask {
         &self.target_dir
     }
 
-    /// List of unanswered prompts in order of appearance
+    /// List of prompts in order of appearance
     pub fn prompts(&self) -> Iter<'_, CtGenTaskPrompt> {
         self.prompts.iter()
+    }
+
+    /// List of unanswered prompts in order of appearance
+    pub fn prompts_unanswered(&self) -> Vec<CtGenTaskPrompt> {
+        self.prompts
+            .iter()
+            .filter(|p| match p {
+                CtGenTaskPrompt::PromptGeneric { prompt_id, prompt_data: _ } => !self.prompt_answers.contains_key(prompt_id),
+                CtGenTaskPrompt::PromptDatabase => self.reflection_adapter.get_database_name().is_empty(),
+                CtGenTaskPrompt::PromptTable => self.table().is_none(),
+            })
+            .cloned()
+            .collect::<Vec<CtGenTaskPrompt>>()
+    }
+
+    /// Get prompt answer by prompt id
+    pub fn prompt_answer(&self, prompt: &str) -> Option<&Value> {
+        self.prompt_answers.get(prompt)
+    }
+
+    /// Get all prompt answers
+    pub fn prompt_answers(&self) -> std::collections::hash_map::Iter<'_, String, Value> {
+        self.prompt_answers.iter()
+    }
+
+    /// Save prompt answers and prepare context data
+    pub async fn set_prompt_answer(&mut self, prompt: &CtGenTaskPrompt, answer: Value) -> Result<()> {
+        match prompt {
+            CtGenTaskPrompt::PromptDatabase => {
+                self.reflection_adapter.set_database_name(answer.as_str().unwrap_or("")).await?;
+            }
+            CtGenTaskPrompt::PromptTable => {
+                let tables = self.reflection_adapter.list_table_names().await?;
+                if tables.contains(&answer.as_str().unwrap_or("").to_string()) {
+                    self.table = Some(answer.as_str().unwrap_or("").to_string());
+                } else {
+                    return Err(CtGenError::ValidationError("Table does not exist".to_string()).into());
+                }
+            }
+            CtGenTaskPrompt::PromptGeneric { prompt_id, prompt_data: _ } => {
+                self.prompt_answers.insert(prompt_id.to_string(), answer);
+            }
+        }
+
+        self.update_context().await?;
+
+        Ok(())
+    }
+
+    async fn update_context(&mut self) -> Result<()> {
+        if let Some(context) = self.context.as_mut() {
+            for (prompt_id, prompt_answer) in self.prompt_answers.iter() {
+                context.set_prompt_answer(prompt_id, prompt_answer);
+            }
+        } else if !self.reflection_adapter.get_database_name().is_empty() && self.table.is_some() {
+            let database = self.reflection_adapter.get_reflection().await?;
+            self.context = Some(CtGenTaskContext::new(database, &self.table.clone().unwrap())?);
+        }
+
+        Ok(())
     }
 }

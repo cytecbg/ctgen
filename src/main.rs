@@ -2,9 +2,11 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use ctgen::consts::CONFIG_NAME_DEFAULT;
 use ctgen::profile::CtGenProfileConfigOverrides;
+use ctgen::task::prompt::CtGenTaskPrompt;
 use ctgen::CtGen;
 #[allow(unused_imports)]
 use log::{debug, error, info, log_enabled, Level};
+use serde_json::Value;
 use std::error::Error;
 
 #[derive(Parser, Debug)]
@@ -132,19 +134,33 @@ async fn main() -> Result<()> {
 
             ctgen.set_current_profile(profile_name).await?;
 
-            if env_file.is_some() || env_var.is_some() || dsn.is_some() || target_dir.is_some() {
-                ctgen.set_current_profile_overrides(CtGenProfileConfigOverrides::new(env_file, env_var, dsn, target_dir));
-            }
+            let mut profile_overrides: Option<CtGenProfileConfigOverrides> = None;
 
-            if let Some(prompts) = prompt {
-                for (prompt_id, prompt_answer) in prompts {
-                    ctgen.set_current_profile_prompt_answer(&prompt_id, &prompt_answer);
-                }
+            if env_file.is_some() || env_var.is_some() || dsn.is_some() || target_dir.is_some() {
+                profile_overrides = Some(CtGenProfileConfigOverrides::new(env_file, env_var, dsn, target_dir));
             }
 
             let context_dir = CtGen::get_realpath(&CtGen::get_current_working_dir()?).await?;
 
-            let task = ctgen.create_task(&context_dir, table.as_ref()).await?;
+            let mut task = ctgen.create_task(&context_dir, table.as_ref(), profile_overrides).await?;
+
+            // set pre-defined prompt answer
+            if let Some(prompts) = prompt {
+                let unanswered_prompts = task.prompts_unanswered(); // TODO clone not great
+
+                for (answered_prompt_id, answered_prompt_answer) in prompts {
+                    if let Some(unanswered_prompt) = unanswered_prompts.iter().find(|p| {
+                        if let CtGenTaskPrompt::PromptGeneric { prompt_id, prompt_data: _ } = p {
+                            return prompt_id == &answered_prompt_id;
+                        }
+                        false
+                    }) {
+                        // TODO unless prompts_unanswered is a cloned set we wouldn't be able to call mutable method
+                        task.set_prompt_answer(unanswered_prompt, Value::from(answered_prompt_answer))
+                            .await?;
+                    }
+                }
+            }
 
             println!("{:?}", task);
 
