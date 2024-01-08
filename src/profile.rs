@@ -1,10 +1,10 @@
 use crate::error::CtGenError;
+use crate::CtGen;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use std::slice::Iter;
-use crate::CtGen;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGenProfile {
@@ -49,12 +49,11 @@ impl CtGenProfile {
 
     pub async fn validate(&self) -> Result<()> {
         // validate templates dir existence and read permissions
-        let canonical_templates_dir =
-            if self.configuration().templates_dir().is_empty() || self.configuration().templates_dir() == "." {
-                self.context_dir().to_string()
-            } else {
-                CtGen::get_filepath(self.context_dir(), self.configuration().templates_dir())
-            };
+        let canonical_templates_dir = if self.configuration().templates_dir().is_empty() || self.configuration().templates_dir() == "." {
+            self.context_dir().to_string()
+        } else {
+            CtGen::get_filepath(self.context_dir(), self.configuration().templates_dir())
+        };
 
         if !CtGen::file_exists(&canonical_templates_dir).await {
             return Err(CtGenError::ValidationError("Invalid templates-dir specified.".to_string()).into());
@@ -113,7 +112,9 @@ impl CtGenProfile {
         &self.name
     }
 
-    pub fn context_dir(&self) -> &str { &self.context_dir }
+    pub fn context_dir(&self) -> &str {
+        &self.context_dir
+    }
 
     pub fn configuration(&self) -> &CtGenProfileConfig {
         &self.profile

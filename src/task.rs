@@ -2,10 +2,10 @@ use crate::error::CtGenError;
 use crate::profile::CtGenProfile;
 use crate::CtGen;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use std::env;
 use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter as DbReflection;
 use database_reflection::adapter::reflection_adapter::{ReflectionAdapter, ReflectionAdapterUninitialized};
+use serde::{Deserialize, Serialize};
+use std::env;
 use tokio::join;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
