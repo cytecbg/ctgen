@@ -214,6 +214,8 @@ async fn main() -> Result<()> {
                 }
             }
 
+            //println!("{}", serde_json::to_string(&task.context())?);
+
             // run
             Ok(task.run().await?)
         }

@@ -7,7 +7,7 @@ target-dir = "target"
 templates-dir = "assets/templates"
 scripts-dir = "assets/scripts"
 prompts = [ "dummy" ]
-targets = [ "test" ]
+targets = [ "test", "dbdoc" ]
 
 [prompt.dummy]
 prompt = "Do you like pizza?"
@@ -16,3 +16,7 @@ options = { 1 = "Yes", 0 = "No" }
 [target.test]
 template = "test"
 target = "render/{{table/name}}.md"
+
+[target.dbdoc]
+template = "dbdoc"
+target = "render/dbdoc.md"
