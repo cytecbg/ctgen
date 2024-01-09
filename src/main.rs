@@ -8,6 +8,8 @@ use ctgen::CtGen;
 use log::{debug, error, info, log_enabled, Level};
 use serde_json::Value;
 use std::error::Error;
+use std::str::FromStr;
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[derive(Parser, Debug)]
 #[command(author = "Cytec BG", version, about = "Code Template Generator", long_about = None)]
@@ -162,11 +164,58 @@ async fn main() -> Result<()> {
                 }
             }
 
-            println!("{:?}", task.context());
+            // ask prompts to prepare context
+            loop {
+                let unanswered_prompts = task.prompts_unanswered(); // TODO clone not great
 
-            //TODO
+                if unanswered_prompts.is_empty() {
+                    break;
+                }
 
-            Ok(())
+                for unanswered_prompt in unanswered_prompts {
+                    match unanswered_prompt.clone() {
+                        CtGenTaskPrompt::PromptDatabase => {
+                            let answer = ask_prompt("Enter database name:", None).await?;
+
+                            task.set_prompt_answer(&unanswered_prompt, answer).await?;
+                        }
+                        CtGenTaskPrompt::PromptTable => {
+                            let answer = ask_prompt("Enter table name:", None).await?;
+
+                            task.set_prompt_answer(&unanswered_prompt, answer).await?;
+                        }
+                        CtGenTaskPrompt::PromptGeneric { prompt_id: _, prompt_data } => {
+                            // if condition property is set, evaluate it to decide whether to proceed with the prompt
+                            let mut should_ask_prompt = false;
+                            if let Some(condition) = prompt_data.condition() {
+                                if let Ok(condition_eval) = task.render(condition) {
+                                    if condition_eval.trim() == "1" {
+                                        should_ask_prompt = true;
+                                    }
+                                }
+                            } else {
+                                should_ask_prompt = true;
+                            }
+
+                            let mut answer = Value::from("0");
+                            if should_ask_prompt {
+                                let prompt_text = task.render(prompt_data.prompt())?;
+
+                                answer = ask_prompt(
+                                    &prompt_text,
+                                    Some(&Value::from_str(&serde_json::to_string(prompt_data.options())?)?),
+                                )
+                                .await?;
+                            }
+
+                            task.set_prompt_answer(&unanswered_prompt, answer).await?;
+                        }
+                    }
+                }
+            }
+
+            // run
+            Ok(task.run().await?)
         }
     }
 }
@@ -182,6 +231,29 @@ fn list_profiles(ctgen: &CtGen) {
     }
 }
 
-async fn prompt(prompt_text: &str, options: &Vec<String>) -> Value {
-    Value::from("")
+/// Ask prompt TODO make pretty
+async fn ask_prompt(prompt_text: &str, options: Option<&Value>) -> Result<Value> {
+    println!("Prompt: {}", prompt_text);
+
+    if let Some(options) = options {
+        if options.is_string() {
+            println!("Options: {}", options.as_str().unwrap());
+        } else if options.is_array() {
+            for option in options.as_array().unwrap() {
+                println!("Option: {}", option);
+            }
+        } else if options.is_object() {
+            for (option_key, option_val) in options.as_object().unwrap() {
+                println!("Option: {} = {}", option_key, option_val);
+            }
+        }
+    }
+
+    let mut input_lines = BufReader::new(tokio::io::stdin()).lines();
+
+    if let Some(line) = input_lines.next_line().await? {
+        return Ok(Value::from(line));
+    }
+
+    Ok(Value::from(""))
 }

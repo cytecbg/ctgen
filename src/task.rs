@@ -317,8 +317,6 @@ impl CtGenTask<'_> {
         Ok(())
     }
 
-
-
     /// Make sure every prompt answer is sent to the context
     async fn update_context(&mut self) -> Result<()> {
         if let Some(context) = self.context.as_mut() {
