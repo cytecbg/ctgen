@@ -371,6 +371,8 @@ impl CtGenTask<'_> {
         file.write_all(output.as_bytes()).await?;
         file.flush().await?;
 
+        // run formatter, if defined TODO
+
         Ok(())
     }
 
