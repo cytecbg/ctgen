@@ -10,14 +10,14 @@ prompts = [ "order", "multiselect", "submodule" ]
 targets = [ "rust", "react" ]
 
 [prompt.order]
-condition = "{{#each table/fields}}{{#if (eq name \"position\")}}{{name}}{{/if}}{{/each}}"
+condition = "{{#each table/columns}}{{#if (eq name \"position\")}}1{{/if}}{{/each}}"
 prompt = "Would you like to add order page?"
 options = { 1 = "Yes", 0 = "No" }
 
 [prompt.multiselect]
-condition = "a script to check if the primary key is a foreign column in another table's constraint that fits the description of an intermediary table, for example product_categories for categories"
-prompt = "Would you like to manage [foreign table name] as multi-select chip component?"
-options = { 1 = "Yes", 0 = "No" }
+prompt = "Select grid columns:"
+options = "{{concat table/columns}}"
+multiple = true
 
 [prompt.submodule]
 condition = "a script to check if the primary key is a foreign column in another table's constraint that fits the description of a belongs-to relation, for example product_prices or product_images"

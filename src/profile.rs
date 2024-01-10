@@ -228,11 +228,16 @@ pub struct CtGenPrompt {
     prompt: String,
     #[serde(default = "CtGenPrompt::default_options")]
     options: toml::Value,
+    #[serde(default = "CtGenPrompt::default_multiple")]
+    multiple: bool
 }
 
 impl CtGenPrompt {
     pub fn default_options() -> toml::Value {
         toml::Value::Boolean(false)
+    }
+    pub fn default_multiple() -> bool {
+        false
     }
 
     pub fn condition(&self) -> Option<&str> {
@@ -244,6 +249,7 @@ impl CtGenPrompt {
     pub fn options(&self) -> &toml::Value {
         &self.options
     }
+    pub fn multiple(&self) -> bool { self.multiple }
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]

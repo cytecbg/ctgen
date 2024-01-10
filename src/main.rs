@@ -175,12 +175,12 @@ async fn main() -> Result<()> {
                 for unanswered_prompt in unanswered_prompts {
                     match unanswered_prompt.clone() {
                         CtGenTaskPrompt::PromptDatabase => {
-                            let answer = ask_prompt("Enter database name:", None).await?;
+                            let answer = ask_prompt("Enter database name:", None, false).await?;
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
                         CtGenTaskPrompt::PromptTable => {
-                            let answer = ask_prompt("Enter table name:", None).await?;
+                            let answer = ask_prompt("Enter table name:", None, false).await?;
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
@@ -201,9 +201,20 @@ async fn main() -> Result<()> {
                             if should_ask_prompt {
                                 let prompt_text = task.render(prompt_data.prompt())?;
 
+                                let options = if prompt_data.options().is_str() {
+                                    // template expression that needs to be evaluated and exploded by ","
+
+                                    let options = task.render(prompt_data.options().as_str().unwrap())?.split(',').map(str::to_string).collect::<Vec<String>>();
+
+                                    Value::from(options)
+                                } else {
+                                    Value::from_str(&serde_json::to_string(prompt_data.options())?)?
+                                };
+
                                 answer = ask_prompt(
                                     &prompt_text,
-                                    Some(&Value::from_str(&serde_json::to_string(prompt_data.options())?)?),
+                                    Some(&options),
+                                    prompt_data.multiple()
                                 )
                                 .await?;
                             }
@@ -234,7 +245,7 @@ fn list_profiles(ctgen: &CtGen) {
 }
 
 /// Ask prompt TODO make pretty
-async fn ask_prompt(prompt_text: &str, options: Option<&Value>) -> Result<Value> {
+async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) -> Result<Value> {
     println!("Prompt: {}", prompt_text);
 
     if let Some(options) = options {
@@ -254,7 +265,11 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>) -> Result<Value>
     let mut input_lines = BufReader::new(tokio::io::stdin()).lines();
 
     if let Some(line) = input_lines.next_line().await? {
-        return Ok(Value::from(line));
+        if multiple {
+            return Ok(Value::from(line.split(',').map(str::to_string).collect::<Vec<String>>()))
+        } else {
+            return Ok(Value::from(line));
+        }
     }
 
     Ok(Value::from(""))
