@@ -6,23 +6,24 @@ dsn = ""
 target-dir = "."
 templates-dir = "assets/templates"
 scripts-dir = "assets/scripts"
-prompts = [ "order", "multiselect", "submodule" ]
+prompts = [ "columns", "order", "submodules" ]
 targets = [ "rust", "react" ]
 
-[prompt.order]
-condition = "{{#each table/columns}}{{#if (eq name \"position\")}}1{{/if}}{{/each}}"
-prompt = "Would you like to add order page?"
-options = { 1 = "Yes", 0 = "No" }
-
-[prompt.multiselect]
+[prompt.columns]
 prompt = "Select grid columns:"
 options = "{{concat table/columns}}"
 multiple = true
 
-[prompt.submodule]
-condition = "a script to check if the primary key is a foreign column in another table's constraint that fits the description of a belongs-to relation, for example product_prices or product_images"
-prompt = "Would you like to add a submodule for [foreign table name]?"
+[prompt.order]
+condition = "{{#each table/columns}}{{#if (eq name \"position\")}}1{{/if}}{{/each}}"
+prompt = "Add order page?"
 options = { 1 = "Yes", 0 = "No" }
+
+[prompt.submodules]
+condition = "{{#if (gt (len constraints_foreign) 0)}}1{{/if}}"
+prompt = "Select submodules to add?"
+options = "{{#each constraints_foreign}}{{key_pairs.[0].local.table}}.{{key_pairs.[0].local.name}}{{#unless @last}},{{/unless}}{{/each}}"
+multiple = true
 
 [target.rust]
 template = "backend/rust_actix_graphql"
