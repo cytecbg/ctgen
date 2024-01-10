@@ -10,10 +10,10 @@ use crate::CtGen;
 use anyhow::Result;
 use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter;
 use database_reflection::adapter::reflection_adapter::{Connected, ReflectionAdapter, ReflectionAdapterUninitialized};
-use handlebars::{DirectorySourceOptions, Handlebars};
+use handlebars::{DirectorySourceOptions, Handlebars, handlebars_helper};
 use handlebars_concat::HandlebarsConcat;
 use handlebars_inflector::HandlebarsInflector;
-use serde_json::Value;
+use serde_json::{Value};
 use sqlx::MySql;
 use std::collections::HashMap;
 use std::env;
@@ -220,6 +220,10 @@ impl CtGenTask<'_> {
 
         handlebars.register_helper("concat", Box::new(HandlebarsConcat));
         handlebars.register_helper("inflect", Box::new(HandlebarsInflector));
+
+        //TODO temporary test
+        handlebars_helper!(json: |input: Value| serde_json::to_string(&input).unwrap_or(String::from("{}")));
+        handlebars.register_helper("json", Box::new(json));
 
         Ok(CtGenTask {
             profile: profile.clone(),
