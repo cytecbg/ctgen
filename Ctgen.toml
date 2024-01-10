@@ -6,7 +6,7 @@ dsn = ""
 target-dir = "target"
 templates-dir = "assets/templates"
 scripts-dir = "assets/scripts"
-prompts = [ "columns", "order", "submodules" ]
+prompts = [ "dummy", "columns", "order", "submodules" ]
 targets = [ "test", "dbdoc" ]
 
 [prompt.dummy]

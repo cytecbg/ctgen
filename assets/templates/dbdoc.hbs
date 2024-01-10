@@ -10,6 +10,12 @@ detailed [section](#detailed-section-for-{{inflect table/name to_kebab_case=true
 Additionally, the user indicated that they **{{#if (eq prompts/dummy "1")}}DO{{else}}DONT{{/if}}** like pizza.
 That's {{#if (eq prompts/dummy "1")}}awesome!{{else}}a shame...{{/if}}
 
+Grid columns selected: {{#concat prompts/columns separator=", " render_all=true}}`{{this}}`{{/concat}}
+
+Order page: **{{#if (eq prompts/order "1")}}YES{{else}}NO{{/if}}**
+
+Submodules: {{#concat prompts/submodules separator=", " render_all=true}}`{{inflect this to_title_case=true}}`{{/concat}}
+
 ## Tables
 
 In this section we will list each table and provide details about its primary key and other columns.
@@ -23,7 +29,7 @@ Table `{{@key}}` has {{len this/columns}} columns and a primary key `{{concat th
 | Column | SQL Type | JSON Type | Rust Type |
 | :--- | :---: | :---: | :---: |
 {{#each this/columns}}
-| `{{this/name}}` | `{{datatype_sql this/datatype}}` | `{{datatype_json this.datatype_json}}` | `{{this.datatype_rust.[0]}}` |
+| `{{this/name}}` | `{{datatype_sql this/datatype}}` | `{{datatype_json this.datatype_json}}` | `{{{this.datatype_rust.[0]}}}` |
 {{/each}}
 
 {{/each}}
@@ -37,7 +43,7 @@ Table `{{table/name}}` has {{len table/columns}} columns and a primary key `{{co
 | Column | SQL Type | JSON Type | Rust Type |
 | :--- | :---: | :---: | :---: |
 {{#each table/columns}}
-| `{{this/name}}` | `{{datatype_sql this/datatype}}` | `{{datatype_json this.datatype_json}}` | `{{this.datatype_rust.[0]}}` |
+| `{{this/name}}` | `{{datatype_sql this/datatype}}` | `{{datatype_json this.datatype_json}}` | `{{{this.datatype_rust.[0]}}}` |
 {{/each}}
 
 ### Foreign keys
