@@ -23,7 +23,7 @@ Table `{{@key}}` has {{len this/columns}} columns and a primary key `{{concat th
 | Column | SQL Type | JSON Type | Rust Type |
 | :--- | :---: | :---: | :---: |
 {{#each this/columns}}
-| `{{this/name}}` | `{{datatype_sql this/datatype}}` | `{{datatype_json this.datatype_json}}` | `{{first this.datatype_rust}}` |
+| `{{this/name}}` | `{{datatype_sql this/datatype}}` | `{{datatype_json this.datatype_json}}` | `{{this.datatype_rust.[0]}}` |
 {{/each}}
 
 {{/each}}
@@ -37,7 +37,7 @@ Table `{{table/name}}` has {{len table/columns}} columns and a primary key `{{co
 | Column | SQL Type | JSON Type | Rust Type |
 | :--- | :---: | :---: | :---: |
 {{#each table/columns}}
-    | `{{this/name}}` | `{{datatype_sql this/datatype}}` | `{{datatype_json this.datatype_json}}` | `{{first this.datatype_rust}}` |
+| `{{this/name}}` | `{{datatype_sql this/datatype}}` | `{{datatype_json this.datatype_json}}` | `{{this.datatype_rust.[0]}}` |
 {{/each}}
 
 ### Foreign keys
