@@ -3,22 +3,23 @@ pub mod prompt;
 
 use crate::consts::FILE_EXT_RHAI;
 use crate::error::CtGenError;
-use crate::profile::{CtGenProfile, CtGenProfileConfigOverrides, CtGenTarget};
+use crate::profile::{CtGenProfile, CtGenProfileConfigOverrides, CtGenPrompt, CtGenTarget};
 use crate::task::context::CtGenTaskContext;
-use crate::task::prompt::CtGenTaskPrompt;
+use crate::task::prompt::{CtGenRenderedPrompt, CtGenTaskPrompt};
 use crate::CtGen;
 use anyhow::Result;
 use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter;
 use database_reflection::adapter::reflection_adapter::{Connected, ReflectionAdapter, ReflectionAdapterUninitialized};
-use handlebars::{DirectorySourceOptions, Handlebars, handlebars_helper};
+use handlebars::{handlebars_helper, DirectorySourceOptions, Handlebars};
 use handlebars_concat::HandlebarsConcat;
 use handlebars_inflector::HandlebarsInflector;
-use serde_json::{Value};
+use serde_json::Value;
 use sqlx::MySql;
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 use std::slice::Iter;
+use std::str::FromStr;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::join;
@@ -301,7 +302,9 @@ impl CtGenTask<'_> {
     pub async fn set_prompt_answer(&mut self, prompt: &CtGenTaskPrompt, answer: Value) -> Result<()> {
         match prompt {
             CtGenTaskPrompt::PromptDatabase => {
-                self.reflection_adapter.set_database_name(answer.as_str().unwrap_or_default()).await?;
+                self.reflection_adapter
+                    .set_database_name(answer.as_str().unwrap_or_default())
+                    .await?;
             }
             CtGenTaskPrompt::PromptTable => {
                 let tables = self.reflection_adapter.list_table_names().await?;
@@ -380,6 +383,7 @@ impl CtGenTask<'_> {
         Ok(())
     }
 
+    /// Render all targets and write the output files
     pub async fn run(&self) -> Result<()> {
         if !self.is_context_ready() {
             return Err(CtGenError::RuntimeError("Context not ready to run all render tasks.".to_string()).into());
@@ -392,6 +396,37 @@ impl CtGenTask<'_> {
         }
 
         Ok(())
+    }
+
+    /// Render all elements of a prompt and yield a new owned prompt
+    pub fn render_prompt(&self, prompt: &CtGenPrompt) -> Result<CtGenRenderedPrompt> {
+        // if condition property is set, evaluate it to decide whether to proceed with the prompt
+        let condition = if let Some(condition) = prompt.condition() {
+            self.render(condition).ok()
+        } else {
+            None
+        };
+
+        // render prompt text
+        let prompt_text = self.render(prompt.prompt())?;
+
+        // render options if defined as string
+        let options = if prompt.options().is_str() {
+            // template expression that needs to be evaluated and exploded by ","
+            let options = self
+                .render(prompt.options().as_str().unwrap())?
+                .split(',')
+                .map(str::to_string)
+                .collect::<Vec<String>>();
+
+            Value::from(options)
+        } else {
+            Value::from_str(&serde_json::to_string(prompt.options())?)?
+        };
+
+        let condition_met = condition.is_none() || condition.is_some_and(|s| s.trim() == "1");
+
+        Ok(CtGenRenderedPrompt::new(condition_met, prompt_text, options, prompt.multiple()))
     }
 
     /// Get context data

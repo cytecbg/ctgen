@@ -8,7 +8,6 @@ use ctgen::CtGen;
 use log::{debug, error, info, log_enabled, Level};
 use serde_json::Value;
 use std::error::Error;
-use std::str::FromStr;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[derive(Parser, Debug)]
@@ -183,36 +182,14 @@ async fn main() -> Result<()> {
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
                         CtGenTaskPrompt::PromptGeneric { prompt_id: _, prompt_data } => {
-                            // if condition property is set, evaluate it to decide whether to proceed with the prompt
-                            let mut should_ask_prompt = false;
-                            if let Some(condition) = prompt_data.condition() {
-                                if let Ok(condition_eval) = task.render(condition) {
-                                    if condition_eval.trim() == "1" {
-                                        should_ask_prompt = true;
-                                    }
-                                }
-                            } else {
-                                should_ask_prompt = true;
-                            }
+                            let rendered_prompt = task.render_prompt(&prompt_data)?;
 
                             let mut answer = Value::from("");
-                            if should_ask_prompt {
-                                let prompt_text = task.render(prompt_data.prompt())?;
-
-                                let options = if prompt_data.options().is_str() {
-                                    // template expression that needs to be evaluated and exploded by ","
-
-                                    let options = task.render(prompt_data.options().as_str().unwrap())?.split(',').map(str::to_string).collect::<Vec<String>>();
-
-                                    Value::from(options)
-                                } else {
-                                    Value::from_str(&serde_json::to_string(prompt_data.options())?)?
-                                };
-
+                            if rendered_prompt.should_ask() {
                                 answer = ask_prompt(
-                                    &prompt_text,
-                                    Some(&options),
-                                    prompt_data.multiple()
+                                    rendered_prompt.prompt(),
+                                    Some(rendered_prompt.options()),
+                                    rendered_prompt.multiple(),
                                 )
                                 .await?;
                             }
@@ -264,7 +241,7 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
 
     if let Some(line) = input_lines.next_line().await? {
         if multiple {
-            return Ok(Value::from(line.split(',').map(str::to_string).collect::<Vec<String>>()))
+            return Ok(Value::from(line.split(',').map(str::to_string).collect::<Vec<String>>()));
         } else {
             return Ok(Value::from(line));
         }

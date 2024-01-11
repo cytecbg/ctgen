@@ -7,3 +7,35 @@ pub enum CtGenTaskPrompt {
     PromptTable,
     PromptGeneric { prompt_id: String, prompt_data: CtGenPrompt },
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CtGenRenderedPrompt {
+    should_ask: bool,
+    prompt: String,
+    options: serde_json::Value,
+    multiple: bool,
+}
+
+impl CtGenRenderedPrompt {
+    pub fn new(should_ask: bool, prompt: String, options: serde_json::Value, multiple: bool) -> CtGenRenderedPrompt {
+        CtGenRenderedPrompt {
+            should_ask,
+            prompt,
+            options,
+            multiple,
+        }
+    }
+
+    pub fn should_ask(&self) -> bool {
+        self.should_ask
+    }
+    pub fn prompt(&self) -> &str {
+        &self.prompt
+    }
+    pub fn options(&self) -> &serde_json::Value {
+        &self.options
+    }
+    pub fn multiple(&self) -> bool {
+        self.multiple
+    }
+}

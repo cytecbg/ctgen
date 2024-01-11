@@ -229,7 +229,7 @@ pub struct CtGenPrompt {
     #[serde(default = "CtGenPrompt::default_options")]
     options: toml::Value,
     #[serde(default = "CtGenPrompt::default_multiple")]
-    multiple: bool
+    multiple: bool,
 }
 
 impl CtGenPrompt {
@@ -249,7 +249,9 @@ impl CtGenPrompt {
     pub fn options(&self) -> &toml::Value {
         &self.options
     }
-    pub fn multiple(&self) -> bool { self.multiple }
+    pub fn multiple(&self) -> bool {
+        self.multiple
+    }
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -261,7 +263,6 @@ pub struct CtGenTarget {
 }
 
 impl CtGenTarget {
-
     pub fn template(&self) -> &str {
         &self.template
     }
