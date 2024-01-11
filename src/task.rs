@@ -255,8 +255,8 @@ impl CtGenTask<'_> {
     }
 
     /// Task subject
-    pub fn table(&self) -> Option<&String> {
-        self.table.as_ref()
+    pub fn table(&self) -> Option<&str> {
+        self.table.as_deref()
     }
 
     /// Canonical context directory
@@ -301,12 +301,12 @@ impl CtGenTask<'_> {
     pub async fn set_prompt_answer(&mut self, prompt: &CtGenTaskPrompt, answer: Value) -> Result<()> {
         match prompt {
             CtGenTaskPrompt::PromptDatabase => {
-                self.reflection_adapter.set_database_name(answer.as_str().unwrap_or("")).await?;
+                self.reflection_adapter.set_database_name(answer.as_str().unwrap_or_default()).await?;
             }
             CtGenTaskPrompt::PromptTable => {
                 let tables = self.reflection_adapter.list_table_names().await?;
-                if tables.contains(&answer.as_str().unwrap_or("").to_string()) {
-                    self.table = Some(answer.as_str().unwrap_or("").to_string());
+                if tables.contains(&answer.as_str().unwrap_or_default().to_string()) {
+                    self.table = Some(answer.as_str().unwrap_or_default().to_string());
                 } else {
                     return Err(CtGenError::ValidationError("Table does not exist".to_string()).into());
                 }

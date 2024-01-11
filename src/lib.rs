@@ -160,7 +160,7 @@ impl CtGen {
                 if let Some(config_profiles) = config.get("profiles") {
                     if config_profiles.is_table() {
                         for (profile_name, profile_file) in config_profiles.as_table().unwrap().iter() {
-                            profiles.insert(profile_name.to_string(), profile_file.as_str().unwrap_or("").to_string());
+                            profiles.insert(profile_name.to_string(), profile_file.as_str().unwrap_or_default().to_string());
                         }
                     }
                 }

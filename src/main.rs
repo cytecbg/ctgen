@@ -97,8 +97,6 @@ where
 async fn main() -> Result<()> {
     env_logger::init();
 
-    //dotenvy::dotenv()?;
-
     let args = Args::parse();
 
     let mut ctgen = CtGen::new().await?;
@@ -197,7 +195,7 @@ async fn main() -> Result<()> {
                                 should_ask_prompt = true;
                             }
 
-                            let mut answer = Value::from("0");
+                            let mut answer = Value::from("");
                             if should_ask_prompt {
                                 let prompt_text = task.render(prompt_data.prompt())?;
 

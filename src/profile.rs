@@ -20,7 +20,7 @@ pub struct CtGenProfile {
 }
 
 impl CtGenProfile {
-    /// Load profile from .toml file, validate and initialize
+    /// Load profile from .toml file and initialize
     pub async fn load(file: &str, name: &str) -> Result<Self> {
         match tokio::fs::read_to_string(file).await {
             Ok(c) => {
@@ -208,17 +208,17 @@ impl CtGenProfileConfigOverrides {
             target_dir,
         }
     }
-    pub fn env_file(&self) -> Option<&String> {
-        self.env_file.as_ref()
+    pub fn env_file(&self) -> Option<&str> {
+        self.env_file.as_deref()
     }
-    pub fn env_var(&self) -> Option<&String> {
-        self.env_var.as_ref()
+    pub fn env_var(&self) -> Option<&str> {
+        self.env_var.as_deref()
     }
-    pub fn dsn(&self) -> Option<&String> {
-        self.dsn.as_ref()
+    pub fn dsn(&self) -> Option<&str> {
+        self.dsn.as_deref()
     }
-    pub fn target_dir(&self) -> Option<&String> {
-        self.target_dir.as_ref()
+    pub fn target_dir(&self) -> Option<&str> {
+        self.target_dir.as_deref()
     }
 }
 
@@ -254,12 +254,14 @@ impl CtGenPrompt {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CtGenTarget {
+    condition: Option<String>,
     template: String,
     target: String,
     formatter: Option<String>,
 }
 
 impl CtGenTarget {
+
     pub fn template(&self) -> &str {
         &self.template
     }
@@ -268,5 +270,8 @@ impl CtGenTarget {
     }
     pub fn formatter(&self) -> Option<&str> {
         self.formatter.as_deref()
+    }
+    pub fn condition(&self) -> Option<&str> {
+        self.condition.as_deref()
     }
 }
