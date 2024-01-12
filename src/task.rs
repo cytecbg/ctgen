@@ -380,17 +380,14 @@ impl CtGenTask<'_> {
 
         // run formatter, if defined
         if let Some(formatter) = target.formatter() {
-            let rendered_formatter = self.renderer.render_template(formatter, &json!({"target": &canonical_target_file}))?;
+            let rendered_formatter = self
+                .renderer
+                .render_template(formatter, &json!({"target": &canonical_target_file}))?;
 
             let output = if cfg!(target_os = "windows") {
-                Command::new("cmd")
-                    .args(["/C", &rendered_formatter])
-                    .output().await?
+                Command::new("cmd").args(["/C", &rendered_formatter]).output().await?
             } else {
-                Command::new("sh")
-                    .arg("-c")
-                    .arg(&rendered_formatter)
-                    .output().await?
+                Command::new("sh").arg("-c").arg(&rendered_formatter).output().await?
             };
 
             if !output.status.success() {
