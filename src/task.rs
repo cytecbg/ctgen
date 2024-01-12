@@ -411,6 +411,14 @@ impl CtGenTask<'_> {
 
         for target_name in self.profile.targets() {
             if let Some(target) = self.profile.target(target_name) {
+                if let Some(condition) = target.condition() {
+                    let evaluated_condition = self.render(condition)?;
+
+                    if evaluated_condition.trim() != "1" {
+                        break;
+                    }
+                }
+
                 self.render_target(target).await?;
             }
         }

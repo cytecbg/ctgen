@@ -31,6 +31,7 @@ target = "src/backend/{{table/name}}.rs"
 formatter = "rustfmt --edition 2021 {{target}}"
 
 [target.react]
+condition = "{{prompts/target_react}}"
 template = "frontend/react_admin"
 target = "backend/src/routes/{{inflect table/name to_pascal_case=true}}.rs"
 formatter = "npx prettier {{target}} --write"

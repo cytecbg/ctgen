@@ -6,11 +6,15 @@ dsn = ""
 target-dir = "target"
 templates-dir = "assets/templates"
 scripts-dir = "assets/scripts"
-prompts = [ "dummy", "columns", "order", "submodules" ]
+prompts = [ "dummy", "target_dbdoc", "columns", "order", "submodules" ]
 targets = [ "test", "dbdoc" ]
 
 [prompt.dummy]
 prompt = "Do you like pizza?"
+options = { 1 = "Yes", 0 = "No" }
+
+[prompt.target_dbdoc]
+prompt = "Would you like to build a db doc markdown file?"
 options = { 1 = "Yes", 0 = "No" }
 
 [prompt.columns]
@@ -35,6 +39,7 @@ target = "render/{{table/name}}.md"
 #formatter = "tail -n 10 {{target}}"
 
 [target.dbdoc]
+condition = "{{prompts/target_dbdoc}}"
 template = "dbdoc"
 target = "render/dbdoc.md"
 formatter = "tail -n 10 {{target}}"
