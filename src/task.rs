@@ -13,7 +13,7 @@ use database_reflection::adapter::reflection_adapter::{Connected, ReflectionAdap
 use handlebars::{handlebars_helper, DirectorySourceOptions, Handlebars};
 use handlebars_concat::HandlebarsConcat;
 use handlebars_inflector::HandlebarsInflector;
-use serde_json::Value;
+use serde_json::{json, Value};
 use sqlx::MySql;
 use std::collections::HashMap;
 use std::env;
@@ -23,6 +23,7 @@ use std::str::FromStr;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::join;
+use tokio::process::Command;
 use walkdir::WalkDir;
 
 #[derive(Debug)]
@@ -222,7 +223,6 @@ impl CtGenTask<'_> {
         handlebars.register_helper("concat", Box::new(HandlebarsConcat));
         handlebars.register_helper("inflect", Box::new(HandlebarsInflector));
 
-        //TODO temporary test
         handlebars_helper!(json: |input: Value| serde_json::to_string(&input).unwrap_or(String::from("{}")));
         handlebars.register_helper("json", Box::new(json));
 
@@ -373,12 +373,35 @@ impl CtGenTask<'_> {
             .write(true)
             .truncate(true)
             .create(true)
-            .open(canonical_target_file)
+            .open(&canonical_target_file)
             .await?;
         file.write_all(output.as_bytes()).await?;
         file.flush().await?;
 
-        // run formatter, if defined TODO
+        // run formatter, if defined
+        if let Some(formatter) = target.formatter() {
+            let rendered_formatter = self.renderer.render_template(formatter, &json!({"target": &canonical_target_file}))?;
+
+            let output = if cfg!(target_os = "windows") {
+                Command::new("cmd")
+                    .args(["/C", &rendered_formatter])
+                    .output().await?
+            } else {
+                Command::new("sh")
+                    .arg("-c")
+                    .arg(&rendered_formatter)
+                    .output().await?
+            };
+
+            if !output.status.success() {
+                // TODO handle formatter error
+            }
+
+            let formatter_output = String::from_utf8_lossy(&output.stdout);
+
+            // TODO handle formatter output better
+            println!("formatter: {}", formatter_output);
+        }
 
         Ok(())
     }

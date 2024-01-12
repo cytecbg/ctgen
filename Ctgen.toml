@@ -32,7 +32,9 @@ multiple = true
 [target.test]
 template = "test"
 target = "render/{{table/name}}.md"
+#formatter = "tail -n 10 {{target}}"
 
 [target.dbdoc]
 template = "dbdoc"
 target = "render/dbdoc.md"
+formatter = "tail -n 10 {{target}}"

@@ -28,9 +28,9 @@ multiple = true
 [target.rust]
 template = "backend/rust_actix_graphql"
 target = "src/backend/{{table/name}}.rs"
-formatter = "cargo fmt"
+formatter = "rustfmt --edition 2021 {{target}}"
 
 [target.react]
 template = "frontend/react_admin"
 target = "backend/src/routes/{{inflect table/name to_pascal_case=true}}.rs"
-formatter = "npx prettify"
+formatter = "npx prettier {{target}} --write"
