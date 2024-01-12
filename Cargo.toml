@@ -23,3 +23,6 @@ handlebars = { version = "^5", features = ["dir_source", "script_helper"] }
 handlebars-inflector = "^0.2.0"
 handlebars-concat = "^0.2.0"
 walkdir = "^2"
+console = "^0.15"
+dialoguer = { version = "^0.10", features = ["history"] }
+indicatif = "^0.17"
