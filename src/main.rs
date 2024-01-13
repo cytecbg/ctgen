@@ -141,7 +141,7 @@ async fn main() -> Result<()> {
 
             let context_dir = CtGen::get_realpath(&CtGen::get_current_working_dir()?).await?;
 
-            let mut task = ctgen.create_task(&context_dir, table.as_ref(), profile_overrides).await?;
+            let mut task = ctgen.create_task(&context_dir, table.as_deref(), profile_overrides).await?;
 
             // set pre-defined prompt answer
             if let Some(prompts) = prompt {

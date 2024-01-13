@@ -287,7 +287,7 @@ impl CtGen {
     pub async fn create_task(
         &self,
         context_dir: &str,
-        table: Option<&String>,
+        table: Option<&str>,
         profile_overrides: Option<CtGenProfileConfigOverrides>,
     ) -> Result<CtGenTask> {
         let real_context_path = CtGen::get_realpath(context_dir).await?;

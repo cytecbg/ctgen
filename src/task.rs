@@ -46,7 +46,7 @@ impl CtGenTask<'_> {
     pub async fn new(
         profile: &CtGenProfile,
         context_dir: &str,
-        table: Option<&String>,
+        table: Option<&str>,
         profile_overrides: Option<CtGenProfileConfigOverrides>,
     ) -> Result<Self> {
         let config = profile.configuration();
@@ -159,7 +159,7 @@ impl CtGenTask<'_> {
             pre_create_context = false;
         } else {
             // check if table exists
-            let table = table.cloned().unwrap();
+            let table = table.unwrap().to_string();
             let tables = reflection_adapter.list_table_names().await?;
             if !tables.contains(&table) {
                 return Err(CtGenError::ValidationError("Table does not exist".to_string()).into());
@@ -179,7 +179,7 @@ impl CtGenTask<'_> {
         if pre_create_context {
             let database = reflection_adapter.get_reflection().await?;
 
-            context = Some(CtGenTaskContext::new(database, &table.cloned().unwrap())?);
+            context = Some(CtGenTaskContext::new(database, table.unwrap())?);
         }
 
         // init renderer
@@ -232,7 +232,7 @@ impl CtGenTask<'_> {
             prompts,
             prompt_answers: HashMap::new(),
             reflection_adapter,
-            table: table.cloned(),
+            table: table.map(str::to_string),
             context_dir: context_dir.to_string(),
             target_dir: canonical_target_dir,
             context,
