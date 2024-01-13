@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use console::style;
 use ctgen::consts::CONFIG_NAME_DEFAULT;
 use ctgen::error::CtGenError;
 use ctgen::profile::CtGenProfileConfigOverrides;
@@ -267,6 +268,8 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
                     .collect::<Vec<String>>()
             };
 
+            println!("Note: Use {} before {}.", style("SPACE").cyan(), style("ENTER").cyan());
+
             let selections = MultiSelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(prompt_text)
                 .items(&multiselected[..])
@@ -282,7 +285,14 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
                 .interact()
                 .unwrap()
             {
-                let subset = multiselected.iter().enumerate().filter(|(idx, _v)| selections.contains(idx)).map(|(_k,v)| v.clone()).collect::<Vec<String>>();
+                let subset = multiselected
+                    .iter()
+                    .enumerate()
+                    .filter(|(idx, _v)| selections.contains(idx))
+                    .map(|(_k, v)| v.clone())
+                    .collect::<Vec<String>>();
+
+                println!("Note: Use {} before {}.", style("SPACE").cyan(), style("ENTER").cyan());
 
                 let subset_sort = Sort::with_theme(&ColorfulTheme::default())
                     .with_prompt("Sort the selected items:")
