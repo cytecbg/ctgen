@@ -7,7 +7,7 @@ use ctgen::task::prompt::CtGenTaskPrompt;
 use ctgen::CtGen;
 use database_reflection::adapter::reflection_adapter::ReflectionAdapter;
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input, MultiSelect, Select};
+use dialoguer::{Confirm, Input, MultiSelect, Select, Sort};
 #[allow(unused_imports)]
 use log::{debug, error, info, log_enabled, Level};
 use serde_json::Value;
@@ -270,10 +270,30 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
             let selections = MultiSelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(prompt_text)
                 .items(&multiselected[..])
-                .max_length(10)
+                .max_length(20)
                 .report(true)
                 .interact()
                 .unwrap();
+
+            let (multiselected, selections) = if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Would you like to sort this selection?")
+                .wait_for_newline(true)
+                .report(true)
+                .interact()
+                .unwrap()
+            {
+                let subset = multiselected.iter().enumerate().filter(|(idx, _v)| selections.contains(idx)).map(|(_k,v)| v.clone()).collect::<Vec<String>>();
+
+                let subset_sort = Sort::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Sort the selected items:")
+                    .items(&subset[..])
+                    .interact()
+                    .unwrap();
+
+                (subset, subset_sort)
+            } else {
+                (multiselected, selections)
+            };
 
             if options.is_object() {
                 let mut results: Vec<String> = Vec::new();
@@ -334,7 +354,7 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
 
             let selection = Select::with_theme(&ColorfulTheme::default())
                 .with_prompt(prompt_text)
-                .max_length(10)
+                .max_length(20)
                 .items(&selections[..])
                 .report(true)
                 .interact()
