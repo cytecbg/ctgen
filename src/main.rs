@@ -1,17 +1,17 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use ctgen::consts::CONFIG_NAME_DEFAULT;
+use ctgen::error::CtGenError;
 use ctgen::profile::CtGenProfileConfigOverrides;
 use ctgen::task::prompt::CtGenTaskPrompt;
 use ctgen::CtGen;
+use database_reflection::adapter::reflection_adapter::ReflectionAdapter;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, MultiSelect, Select};
 #[allow(unused_imports)]
 use log::{debug, error, info, log_enabled, Level};
 use serde_json::Value;
 use std::error::Error;
-use database_reflection::adapter::reflection_adapter::ReflectionAdapter;
-use ctgen::error::CtGenError;
 
 #[derive(Parser, Debug)]
 #[command(author = "Cytec BG", version, about = "Code Template Generator", long_about = None)]
@@ -246,109 +246,112 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
                 .unwrap();
 
             return Ok(Value::from(input));
-        } else {
-            if !options.is_object() && !options.is_array() {
-                Err(CtGenError::RuntimeError("Invalid prompt options".to_string()).into())
-            }
-            else {
-                if multiple {
-                    //multi-select + sort?
+        } else if !options.is_object() && !options.is_array() {
+            Err(CtGenError::RuntimeError("Invalid prompt options".to_string()).into())
+        } else if multiple {
+            //multi-select + sort?
 
-                    let multiselected = if options.is_object() {
-                        options
-                            .as_object()
-                            .unwrap()
-                            .values()
-                            .map(|v| v.as_str().unwrap().to_string())
-                            .collect::<Vec<String>>()
-                    } else {
-                        options.as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect::<Vec<String>>()
-                    };
+            let multiselected = if options.is_object() {
+                options
+                    .as_object()
+                    .unwrap()
+                    .values()
+                    .map(|v| v.as_str().unwrap().to_string())
+                    .collect::<Vec<String>>()
+            } else {
+                options
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap().to_string())
+                    .collect::<Vec<String>>()
+            };
 
-                    let selections = MultiSelect::with_theme(&ColorfulTheme::default())
-                        .with_prompt(prompt_text)
-                        .items(&multiselected[..])
-                        .max_length(10)
-                        .report(true)
-                        .interact()
-                        .unwrap();
+            let selections = MultiSelect::with_theme(&ColorfulTheme::default())
+                .with_prompt(prompt_text)
+                .items(&multiselected[..])
+                .max_length(10)
+                .report(true)
+                .interact()
+                .unwrap();
 
-                    if options.is_object() {
-                        let mut results: Vec<String> = Vec::new();
-                        for selection in selections {
-                            let value = multiselected[selection].clone();
+            if options.is_object() {
+                let mut results: Vec<String> = Vec::new();
+                for selection in selections {
+                    let value = multiselected[selection].clone();
 
-                            let key = options
-                                .as_object()
-                                .unwrap()
-                                .iter()
-                                .find_map(|(k, v)| if v.as_str().unwrap() == value { Some(k.clone()) } else { None })
-                                .unwrap_or(String::from(""));
+                    let key = options
+                        .as_object()
+                        .unwrap()
+                        .iter()
+                        .find_map(|(k, v)| if v.as_str().unwrap() == value { Some(k.clone()) } else { None })
+                        .unwrap_or(String::from(""));
 
-                            results.push(key.clone());
-                        }
-
-                        Ok(Value::from(results))
-                    } else {
-                        let mut results: Vec<String> = Vec::new();
-                        for selection in selections {
-                            results.push(multiselected[selection].clone());
-                        }
-
-                        Ok(Value::from(results))
-                    }
-                } else {
-                    if options.is_object() && options.as_object().unwrap().keys().eq(["0", "1"].iter()) {
-                        // confirm
-
-                        if Confirm::with_theme(&ColorfulTheme::default())
-                            .with_prompt(prompt_text)
-                            .wait_for_newline(true)
-                            .report(true)
-                            .interact()
-                            .unwrap()
-                        {
-                            Ok(Value::from("1"))
-                        } else {
-                            Ok(Value::from("0"))
-                        }
-                    } else {
-                        // select
-
-                        let selections = if options.is_object() {
-                            options
-                                .as_object()
-                                .unwrap()
-                                .values()
-                                .map(|v| v.as_str().unwrap().to_string())
-                                .collect::<Vec<String>>()
-                        } else {
-                            options.as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect::<Vec<String>>()
-                        };
-
-                        let selection = Select::with_theme(&ColorfulTheme::default())
-                            .with_prompt(prompt_text)
-                            .max_length(10)
-                            .items(&selections[..])
-                            .report(true)
-                            .interact()
-                            .unwrap();
-
-                        if options.is_object() {
-                            let value = selections.get(selection).unwrap();
-                            let key = options
-                                .as_object()
-                                .unwrap()
-                                .iter()
-                                .find_map(|(k, v)| if v == value { Some(k.clone()) } else { None })
-                                .unwrap_or(String::from(""));
-
-                            Ok(Value::from(key.clone()))
-                        } else {
-                            Ok(Value::from(selections.get(selection).unwrap().clone()))
-                        }
-                    }
+                    results.push(key.clone());
                 }
+
+                Ok(Value::from(results))
+            } else {
+                let mut results: Vec<String> = Vec::new();
+                for selection in selections {
+                    results.push(multiselected[selection].clone());
+                }
+
+                Ok(Value::from(results))
+            }
+        } else if options.is_object() && options.as_object().unwrap().keys().eq(["0", "1"].iter()) {
+            // confirm
+
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt(prompt_text)
+                .wait_for_newline(true)
+                .report(true)
+                .interact()
+                .unwrap()
+            {
+                Ok(Value::from("1"))
+            } else {
+                Ok(Value::from("0"))
+            }
+        } else {
+            // select
+
+            let selections = if options.is_object() {
+                options
+                    .as_object()
+                    .unwrap()
+                    .values()
+                    .map(|v| v.as_str().unwrap().to_string())
+                    .collect::<Vec<String>>()
+            } else {
+                options
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap().to_string())
+                    .collect::<Vec<String>>()
+            };
+
+            let selection = Select::with_theme(&ColorfulTheme::default())
+                .with_prompt(prompt_text)
+                .max_length(10)
+                .items(&selections[..])
+                .report(true)
+                .interact()
+                .unwrap();
+
+            if options.is_object() {
+                let value = selections.get(selection).unwrap();
+                let key = options
+                    .as_object()
+                    .unwrap()
+                    .iter()
+                    .find_map(|(k, v)| if v == value { Some(k.clone()) } else { None })
+                    .unwrap_or(String::from(""));
+
+                Ok(Value::from(key.clone()))
+            } else {
+                Ok(Value::from(selections.get(selection).unwrap().clone()))
             }
         }
     } else {
