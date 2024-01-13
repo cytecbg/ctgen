@@ -4,11 +4,14 @@ use ctgen::consts::CONFIG_NAME_DEFAULT;
 use ctgen::profile::CtGenProfileConfigOverrides;
 use ctgen::task::prompt::CtGenTaskPrompt;
 use ctgen::CtGen;
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::{Confirm, Input, MultiSelect, Select};
 #[allow(unused_imports)]
 use log::{debug, error, info, log_enabled, Level};
 use serde_json::Value;
 use std::error::Error;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use database_reflection::adapter::reflection_adapter::ReflectionAdapter;
+use ctgen::error::CtGenError;
 
 #[derive(Parser, Debug)]
 #[command(author = "Cytec BG", version, about = "Code Template Generator", long_about = None)]
@@ -172,12 +175,20 @@ async fn main() -> Result<()> {
                 for unanswered_prompt in unanswered_prompts {
                     match unanswered_prompt.clone() {
                         CtGenTaskPrompt::PromptDatabase => {
-                            let answer = ask_prompt("Enter database name:", None, false).await?;
+                            let options = Value::from(task.reflection_adapter().list_database_names().await?);
+
+                            let answer = ask_prompt("Enter database name:", Some(&options), false).await?;
+
+                            println!("DEBUG: {:?}", answer);
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
                         CtGenTaskPrompt::PromptTable => {
-                            let answer = ask_prompt("Enter table name:", None, false).await?;
+                            let options = Value::from(task.reflection_adapter().list_table_names().await?);
+
+                            let answer = ask_prompt("Enter table name:", Some(&options), false).await?;
+
+                            println!("DEBUG: {:?}", answer);
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
@@ -192,6 +203,8 @@ async fn main() -> Result<()> {
                                     rendered_prompt.multiple(),
                                 )
                                 .await?;
+
+                                println!("DEBUG: {:?}", answer);
                             }
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
@@ -219,33 +232,163 @@ fn list_profiles(ctgen: &CtGen) {
     }
 }
 
-/// Ask prompt TODO make pretty
+/// Ask prompt
 async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) -> Result<Value> {
-    println!("Prompt: {}", prompt_text);
-
-    if let Some(options) = options {
+    return if let Some(options) = options {
         if options.is_string() {
-            println!("Options: {}", options.as_str().unwrap());
-        } else if options.is_array() {
-            for option in options.as_array().unwrap() {
-                println!("Option: {}", option);
-            }
-        } else if options.is_object() {
-            for (option_key, option_val) in options.as_object().unwrap() {
-                println!("Option: {} = {}", option_key, option_val);
-            }
-        }
-    }
+            //input with default suggestion
 
-    let mut input_lines = BufReader::new(tokio::io::stdin()).lines();
+            let input: String = Input::with_theme(&ColorfulTheme::default())
+                .with_prompt(prompt_text)
+                .default(options.as_str().unwrap().to_string())
+                .report(true)
+                .interact_text()
+                .unwrap();
 
-    if let Some(line) = input_lines.next_line().await? {
-        if multiple {
-            return Ok(Value::from(line.split(',').map(str::to_string).collect::<Vec<String>>()));
+            return Ok(Value::from(input));
         } else {
-            return Ok(Value::from(line));
-        }
-    }
+            if !options.is_object() && !options.is_array() {
+                Err(CtGenError::RuntimeError("Invalid prompt options".to_string()).into())
+            }
+            else {
+                if multiple {
+                    //multi-select + sort?
 
-    Ok(Value::from(""))
+                    let multiselected = if options.is_object() {
+                        options
+                            .as_object()
+                            .unwrap()
+                            .values()
+                            .map(|v| v.as_str().unwrap().to_string())
+                            .collect::<Vec<String>>()
+                    } else {
+                        options.as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect::<Vec<String>>()
+                    };
+
+                    let selections = MultiSelect::with_theme(&ColorfulTheme::default())
+                        .with_prompt(prompt_text)
+                        .items(&multiselected[..])
+                        .max_length(10)
+                        .report(true)
+                        .interact()
+                        .unwrap();
+
+                    if options.is_object() {
+                        let mut results: Vec<String> = Vec::new();
+                        for selection in selections {
+                            let value = multiselected[selection].clone();
+
+                            let key = options
+                                .as_object()
+                                .unwrap()
+                                .iter()
+                                .find_map(|(k, v)| if v.as_str().unwrap() == value { Some(k.clone()) } else { None })
+                                .unwrap_or(String::from(""));
+
+                            results.push(key.clone());
+                        }
+
+                        Ok(Value::from(results))
+                    } else {
+                        let mut results: Vec<String> = Vec::new();
+                        for selection in selections {
+                            results.push(multiselected[selection].clone());
+                        }
+
+                        Ok(Value::from(results))
+                    }
+                } else {
+                    if options.is_object() && options.as_object().unwrap().keys().eq(["0", "1"].iter()) {
+                        // confirm
+
+                        if Confirm::with_theme(&ColorfulTheme::default())
+                            .with_prompt(prompt_text)
+                            .wait_for_newline(true)
+                            .report(true)
+                            .interact()
+                            .unwrap()
+                        {
+                            Ok(Value::from("1"))
+                        } else {
+                            Ok(Value::from("0"))
+                        }
+                    } else {
+                        // select
+
+                        let selections = if options.is_object() {
+                            options
+                                .as_object()
+                                .unwrap()
+                                .values()
+                                .map(|v| v.as_str().unwrap().to_string())
+                                .collect::<Vec<String>>()
+                        } else {
+                            options.as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect::<Vec<String>>()
+                        };
+
+                        let selection = Select::with_theme(&ColorfulTheme::default())
+                            .with_prompt(prompt_text)
+                            .max_length(10)
+                            .items(&selections[..])
+                            .report(true)
+                            .interact()
+                            .unwrap();
+
+                        if options.is_object() {
+                            let value = selections.get(selection).unwrap();
+                            let key = options
+                                .as_object()
+                                .unwrap()
+                                .iter()
+                                .find_map(|(k, v)| if v == value { Some(k.clone()) } else { None })
+                                .unwrap_or(String::from(""));
+
+                            Ok(Value::from(key.clone()))
+                        } else {
+                            Ok(Value::from(selections.get(selection).unwrap().clone()))
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        //input
+
+        let input: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt(prompt_text)
+            .interact_text()
+            .unwrap();
+
+        Ok(Value::from(input))
+    };
+
+    //Ok(Value::from(""))
+
+    // println!("Prompt: {}", prompt_text);
+    //
+    // if let Some(options) = options {
+    //     if options.is_string() {
+    //         println!("Options: {}", options.as_str().unwrap());
+    //     } else if options.is_array() {
+    //         for option in options.as_array().unwrap() {
+    //             println!("Option: {}", option);
+    //         }
+    //     } else if options.is_object() {
+    //         for (option_key, option_val) in options.as_object().unwrap() {
+    //             println!("Option: {} = {}", option_key, option_val);
+    //         }
+    //     }
+    // }
+    //
+    // let mut input_lines = BufReader::new(tokio::io::stdin()).lines();
+    //
+    // if let Some(line) = input_lines.next_line().await? {
+    //     if multiple {
+    //         return Ok(Value::from(line.split(',').map(str::to_string).collect::<Vec<String>>()));
+    //     } else {
+    //         return Ok(Value::from(line));
+    //     }
+    // }
+    //
+    // Ok(Value::from(""))
 }
