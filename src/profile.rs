@@ -26,7 +26,13 @@ impl CtGenProfile {
             Ok(c) => {
                 let mut profile: CtGenProfile =
                     toml::from_str(&c).map_err(|e| CtGenError::RuntimeError(format!("Failed to parse profile config: {}", e)))?;
-                profile.set_name(name);
+
+                if !name.is_empty() {
+                    profile.set_name(name);
+                } else {
+                    let name = profile.profile.name().to_string();
+                    profile.set_name(name.as_str());
+                }
 
                 let context_dir = Path::new(file)
                     .parent()

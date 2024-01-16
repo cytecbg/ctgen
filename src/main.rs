@@ -13,6 +13,7 @@ use dialoguer::{Confirm, Input, MultiSelect, Select, Sort};
 use log::{debug, error, info, log_enabled, Level};
 use serde_json::Value;
 use std::error::Error;
+use std::fmt::Display;
 
 #[derive(Parser, Debug)]
 #[command(author = "Cytec BG", version, about = "Code Template Generator", long_about = None)]
@@ -222,14 +223,35 @@ async fn main() -> Result<()> {
     }
 }
 
-/// List profiles TODO make pretty
+/// Print info label
+fn print_info(label: impl Display) {
+    println!("{} {}", style("❯".to_string()).for_stderr().green(), label);
+}
+
+/// Print fail label
+fn print_fail(label: impl Display) {
+    println!("{} {}", style("?".to_string()).for_stderr().yellow(), label);
+}
+
+/// List profiles
 fn list_profiles(ctgen: &CtGen) {
     if !ctgen.get_profiles().is_empty() {
-        for (profile_name, profile_file) in ctgen.get_profiles().iter() {
-            println!("Profile {} at {}", profile_name, profile_file);
+        print_info("Installed profiles:");
+
+        let total = ctgen.get_profiles().len();
+        for (idx, (profile_name, profile_file)) in ctgen.get_profiles().iter().enumerate() {
+            let idx_label = format!("[{}/{}]", (idx+1), total);
+
+            let profile_name_label = if profile_name == CONFIG_NAME_DEFAULT {
+                style(profile_name).cyan().bold()
+            } else {
+                style(profile_name).cyan()
+            };
+
+            println!("{}\t{}\t{}", style(idx_label).dim(), profile_name_label, style(profile_file).underlined());
         }
     } else {
-        println!("No profiles found.");
+        print_fail("No profiles found.");
     }
 }
 

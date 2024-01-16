@@ -212,7 +212,8 @@ impl CtGen {
         let regex =
             Regex::new(CONFIG_NAME_PATTERN).map_err(|e| CtGenError::ValidationError(format!("Failed to compile regex pattern: {}", e)))?;
 
-        if !regex.is_match(name) {
+        // if name is empty we will use the profile defined name later on
+        if !name.is_empty() && !regex.is_match(name) {
             return Err(CtGenError::ValidationError(format!(
                 "Invalid profile name: {}. Make sure it matches {}",
                 name, CONFIG_NAME_PATTERN
