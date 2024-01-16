@@ -58,6 +58,14 @@ pub enum Commands {
         /// Database table name to generate code templates for
         table: Option<String>,
     },
+    /// Init a new profile
+    Init {
+        #[arg(long)]
+        /// Add config with specific name
+        name: Option<String>,
+
+        path: Option<String>
+    }
 }
 
 #[derive(Subcommand, Debug)]
@@ -232,6 +240,13 @@ async fn main() -> Result<()> {
             // run
             print_info("Running ctgen task");
             Ok(task.run().await?)
+        }
+        Commands::Init { name, path:_} => {
+            // TODO gen stub
+
+            print_info(format!("Creating profile {}", style(name.unwrap_or_default()).cyan()));
+
+            Ok(())
         }
     }
 }
