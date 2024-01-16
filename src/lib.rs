@@ -207,7 +207,7 @@ impl CtGen {
     }
 
     /// Add a new profile or replace existing
-    pub async fn add_profile(&mut self, name: &str, path: &str) -> Result<()> {
+    pub async fn add_profile(&mut self, name: &str, path: &str) -> Result<CtGenProfile> {
         // validate name
         let regex =
             Regex::new(CONFIG_NAME_PATTERN).map_err(|e| CtGenError::ValidationError(format!("Failed to compile regex pattern: {}", e)))?;
@@ -249,7 +249,9 @@ impl CtGen {
         self.profiles.insert(name.to_string(), fullpath.clone());
 
         // save profiles
-        self.save_profiles().await
+        self.save_profiles().await?;
+
+        Ok(profile)
     }
 
     pub async fn remove_profile(&mut self, name: &str) -> Result<()> {

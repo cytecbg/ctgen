@@ -116,14 +116,24 @@ async fn main() -> Result<()> {
                     ""
                 };
 
-                ctgen.add_profile(profile_name, &path).await
+                let profile = ctgen.add_profile(profile_name, &path).await?;
+
+                print_info(format!("Added profile {}", style(profile.name()).cyan()));
+
+                Ok(())
             }
             CommandConfig::List => {
                 list_profiles(&ctgen);
 
                 Ok(())
             }
-            CommandConfig::Rm { name } => ctgen.remove_profile(&name).await,
+            CommandConfig::Rm { name } => {
+                ctgen.remove_profile(&name).await?;
+
+                print_info(format!("Removed profile {}", style(name).cyan()));
+
+                Ok(())
+            },
         },
         Commands::Run {
             profile,
@@ -136,20 +146,26 @@ async fn main() -> Result<()> {
         } => {
             let profile_name = if let Some(p) = profile.as_deref() { p } else { CONFIG_NAME_DEFAULT };
 
+            print_info(format!("Loading profile {}", style(profile_name).cyan()));
+
             ctgen.set_current_profile(profile_name).await?;
 
             let mut profile_overrides: Option<CtGenProfileConfigOverrides> = None;
 
             if env_file.is_some() || env_var.is_some() || dsn.is_some() || target_dir.is_some() {
+                print_info("Overriding profile parameters");
                 profile_overrides = Some(CtGenProfileConfigOverrides::new(env_file, env_var, dsn, target_dir));
             }
 
             let context_dir = CtGen::get_realpath(&CtGen::get_current_working_dir()?).await?;
 
+            print_info("Creating ctgen task");
+
             let mut task = ctgen.create_task(&context_dir, table.as_deref(), profile_overrides).await?;
 
             // set pre-defined prompt answer
             if let Some(prompts) = prompt {
+                print_info("Overriding prompt responses");
                 let unanswered_prompts = task.prompts_unanswered(); // TODO clone not great
 
                 for (answered_prompt_id, answered_prompt_answer) in prompts {
@@ -174,6 +190,8 @@ async fn main() -> Result<()> {
                     break;
                 }
 
+                print_info("Preparing prompts");
+
                 for unanswered_prompt in unanswered_prompts {
                     match unanswered_prompt.clone() {
                         CtGenTaskPrompt::PromptDatabase => {
@@ -181,16 +199,12 @@ async fn main() -> Result<()> {
 
                             let answer = ask_prompt("Enter database name:", Some(&options), false).await?;
 
-                            println!("DEBUG: {:?}", answer);
-
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
                         CtGenTaskPrompt::PromptTable => {
                             let options = Value::from(task.reflection_adapter().list_table_names().await?);
 
                             let answer = ask_prompt("Enter table name:", Some(&options), false).await?;
-
-                            println!("DEBUG: {:?}", answer);
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
@@ -205,8 +219,6 @@ async fn main() -> Result<()> {
                                     rendered_prompt.multiple(),
                                 )
                                 .await?;
-
-                                println!("DEBUG: {:?}", answer);
                             }
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
@@ -218,6 +230,7 @@ async fn main() -> Result<()> {
             //println!("{}", serde_json::to_string(&task.context())?);
 
             // run
+            print_info("Running ctgen task");
             Ok(task.run().await?)
         }
     }
@@ -290,7 +303,7 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
                     .collect::<Vec<String>>()
             };
 
-            println!("Note: Use {} before {}.", style("SPACE").cyan(), style("ENTER").cyan());
+            print_info(format!("Note: Use {} before {}.", style("SPACE").cyan(), style("ENTER").cyan()));
 
             let selections = MultiSelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(prompt_text)
@@ -314,7 +327,7 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
                     .map(|(_k, v)| v.clone())
                     .collect::<Vec<String>>();
 
-                println!("Note: Use {} before {}.", style("SPACE").cyan(), style("ENTER").cyan());
+                print_info(format!("Note: Use {} before {}.", style("SPACE").cyan(), style("ENTER").cyan()));
 
                 let subset_sort = Sort::with_theme(&ColorfulTheme::default())
                     .with_prompt("Sort the selected items:")
