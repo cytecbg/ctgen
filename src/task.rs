@@ -314,7 +314,20 @@ impl CtGenTask<'_> {
                     return Err(CtGenError::ValidationError("Table does not exist".to_string()).into());
                 }
             }
-            CtGenTaskPrompt::PromptGeneric { prompt_id, prompt_data: _ } => {
+            CtGenTaskPrompt::PromptGeneric { prompt_id, prompt_data } => {
+                if prompt_data.required() {
+                    // check answer validity before accepting
+                    if let Value::String(s) = answer.clone() {
+                        if s.trim().is_empty() {
+                            return Err(CtGenError::ValidationError(format!("Invalid answer to prompt {}", prompt_id)).into());
+                        }
+                    } else if let Value::Array(ar) = answer.clone() {
+                        if ar.is_empty() {
+                            return Err(CtGenError::ValidationError(format!("Invalid answer to prompt {}", prompt_id)).into());
+                        }
+                    }
+                }
+
                 self.prompt_answers.insert(prompt_id.to_string(), answer);
             }
         }

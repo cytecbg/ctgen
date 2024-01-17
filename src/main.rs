@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use console::style;
 use ctgen::consts::CONFIG_NAME_DEFAULT;
 use ctgen::error::CtGenError;
-use ctgen::profile::CtGenProfileConfigOverrides;
+use ctgen::profile::{CtGenProfile, CtGenProfileConfigOverrides};
 use ctgen::task::prompt::CtGenTaskPrompt;
 use ctgen::CtGen;
 use database_reflection::adapter::reflection_adapter::ReflectionAdapter;
@@ -14,6 +14,7 @@ use log::{debug, error, info, log_enabled, Level};
 use serde_json::Value;
 use std::error::Error;
 use std::fmt::Display;
+use std::path::Path;
 
 #[derive(Parser, Debug)]
 #[command(author = "Cytec BG", version, about = "Code Template Generator", long_about = None)]
@@ -61,10 +62,11 @@ pub enum Commands {
     /// Init a new profile
     Init {
         #[arg(long)]
-        /// Add config with specific name
+        /// Add config profile with specific name
         name: Option<String>,
 
-        path: Option<String>
+        #[arg(default_value = ".")]
+        path: String
     }
 }
 
@@ -84,6 +86,7 @@ pub enum CommandConfig {
         path: String,
     },
     /// List all saved config profiles
+    #[command(alias = "ls")]
     List,
     /// Remove a config profile
     Rm {
@@ -131,7 +134,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             CommandConfig::List => {
-                list_profiles(&ctgen);
+                list_profiles(&ctgen).await;
 
                 Ok(())
             }
@@ -241,10 +244,36 @@ async fn main() -> Result<()> {
             print_info("Running ctgen task");
             Ok(task.run().await?)
         }
-        Commands::Init { name, path:_} => {
-            // TODO gen stub
+        Commands::Init { name, path} => {
+            let name = if let Some(name) = name {
+                name
+            } else {
+                //CONFIG_NAME_DEFAULT.to_string()
+                let default_name = if ctgen.get_profiles().contains_key(CONFIG_NAME_DEFAULT) {
+                    // there's already a default profile, so we better suggest something else, like for example the path, if it's alphanumeric, or the base directory name of the CWD
+                    if path.chars().all(char::is_alphanumeric) {
+                        path.clone()
+                    } else {
+                        Path::new(&CtGen::get_current_working_dir()?).file_name().unwrap_or_default().to_str().unwrap_or_default().to_string()
+                    }
+                } else {
+                    CONFIG_NAME_DEFAULT.to_string()
+                };
 
-            print_info(format!("Creating profile {}", style(name.unwrap_or_default()).cyan()));
+                loop {
+                    let answer = ask_prompt("Enter profile name:", Some(&Value::String(default_name.clone())), false).await;
+
+                    if answer.as_ref().is_ok_and(|v| v.as_str().is_some_and(|s| !s.is_empty())) {
+                        break answer.unwrap().as_str().unwrap().to_string();
+                    }
+                }
+            };
+
+            print_info(format!("Creating profile {}", style(&name).cyan()));
+
+            let _profile = ctgen.init_profile(&path, &name).await?;
+
+            print_info(format!("Created and registered profile {}", style(&name).cyan()));
 
             Ok(())
         }
@@ -262,7 +291,7 @@ fn print_fail(label: impl Display) {
 }
 
 /// List profiles
-fn list_profiles(ctgen: &CtGen) {
+async fn list_profiles(ctgen: &CtGen) {
     if !ctgen.get_profiles().is_empty() {
         print_info("Installed profiles:");
 
@@ -270,10 +299,14 @@ fn list_profiles(ctgen: &CtGen) {
         for (idx, (profile_name, profile_file)) in ctgen.get_profiles().iter().enumerate() {
             let idx_label = format!("[{}/{}]", (idx+1), total);
 
-            let profile_name_label = if profile_name == CONFIG_NAME_DEFAULT {
-                style(profile_name).cyan().bold()
+            let profile_name_label = if CtGenProfile::load(profile_file, profile_name).await.is_ok() {
+                if profile_name == CONFIG_NAME_DEFAULT {
+                    style(profile_name).cyan().bold()
+                } else {
+                    style(profile_name).cyan()
+                }
             } else {
-                style(profile_name).cyan()
+                style(profile_name).red().blink()
             };
 
             println!("{}\t{}\t{}", style(idx_label).dim(), profile_name_label, style(profile_file).underlined());

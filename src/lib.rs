@@ -11,7 +11,7 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
 use std::env;
-use std::path::MAIN_SEPARATOR;
+use std::path::{MAIN_SEPARATOR};
 use tokio::io::AsyncWriteExt;
 
 #[derive(Clone, Default, Debug)]
@@ -285,6 +285,70 @@ impl CtGen {
 
     pub fn get_current_profile(&self) -> Option<&CtGenProfile> {
         self.current_profile.as_ref()
+    }
+
+    pub async fn init_profile(&mut self, path: &str, name: &str) -> Result<CtGenProfile> {
+        let fullpath = if path == "." || path == "./" {
+            // default, cwd
+            CtGen::get_current_working_dir()?
+        } else if path.chars().all(char::is_alphanumeric) {
+            // just dir name, must create CWD/dirname if not exist
+            CtGen::get_filepath(&CtGen::get_current_working_dir()?, path)
+        } else {
+            // resolve relative path
+            CtGen::get_realpath(path).await?
+        };
+
+        let profile = CtGenProfile::new(&fullpath, name);
+
+        CtGen::init_config_dir(&fullpath).await?;
+        CtGen::init_config_dir(profile.templates_dir().as_str()).await?;
+        CtGen::init_config_dir(profile.scripts_dir().as_str()).await?;
+
+        let toml = toml::to_string(&profile)
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to generate toml file: {}", e)))?;
+
+        let config_file = CtGen::get_filepath(&fullpath, PROFILE_DEFAULT_FILENAME);
+
+        let mut file = tokio::fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&config_file)
+            .await
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to open toml file: {}", e)))?;
+
+        file.write_all(toml.as_bytes())
+            .await
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to write toml file: {}", e)))?;
+
+        file.flush()
+            .await
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to flush toml file: {}", e)))?;
+
+        for target in profile.targets() {
+            let target = profile.target(target).unwrap();
+
+            let template_file = CtGen::get_filepath(profile.templates_dir().as_str(), format!("{}.hbs", target.template()).as_str());
+
+            let template = DUMMY_TEMPLATE;
+
+            let mut file = tokio::fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(template_file)
+                .await
+                .map_err(|e| CtGenError::RuntimeError(format!("Failed to open template file: {}", e)))?;
+
+            file.write_all(template.as_bytes())
+                .await
+                .map_err(|e| CtGenError::RuntimeError(format!("Failed to write template file: {}", e)))?;
+
+            file.flush()
+                .await
+                .map_err(|e| CtGenError::RuntimeError(format!("Failed to flush template file: {}", e)))?;
+        }
+
+        self.add_profile(name,&config_file).await
     }
 
     pub async fn create_task(

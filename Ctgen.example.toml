@@ -13,17 +13,20 @@ targets = [ "rust", "react" ]
 prompt = "Select grid columns:"
 options = "{{concat table/columns}}"
 multiple = true
+required = true
 
 [prompt.order]
 condition = "{{#each table/columns}}{{#if (eq name \"position\")}}1{{/if}}{{/each}}"
 prompt = "Add order page?"
 options = { 1 = "Yes", 0 = "No" }
+required = false
 
 [prompt.submodules]
 condition = "{{#if (gt (len constraints_foreign) 0)}}1{{/if}}"
 prompt = "Select submodules to add?"
 options = "{{#each constraints_foreign}}{{key_pairs.[0].local.table}}.{{key_pairs.[0].local.name}}{{#unless @last}},{{/unless}}{{/each}}"
 multiple = true
+required = false
 
 [target.rust]
 template = "backend/rust_actix_graphql"
