@@ -5,7 +5,7 @@ Generate code or text documents based on pre-defined code templates and a databa
 
 Currently supports only MySQL/MariaDB databases with InnoDB table storage engine.
 
-Code templates are written in `handlebars` format and support `rhai` scripts.
+Code templates are written in [`handlebars`](https://handlebarsjs.com/guide/) format and support [`rhai`](https://rhai.rs/book/) scripts.
 
 # Install
 
@@ -17,9 +17,9 @@ copy `target/release/ctgen` to a bin path of your choice.
 # Usage
 
 There are 3 modes of operation (commands).
-1. The `init` command is for creating a new configuration profile project.
-2. The `config` command is for managing existing configuration profiles.
-3. The `run` command is for running a generation task inside another project.
+1. The [`init`](#create-profile) command is for creating a new configuration profile project.
+2. The [`config`](#manage-profiles) command is for managing existing configuration profiles.
+3. The [`run`](#run-tasks) command is for running a generation task inside another project.
 
 ## Create profile
 
@@ -32,7 +32,7 @@ To avoid being prompted for a profile name, use the `--name` option: `ctgen init
 This will create a new configuration profile project and register it using the same name.
 
 The default project layout is:
-- Profile config file: `Ctgen.toml`. Describes the profile behavior, templates and build targets.
+- Profile config file: [`Ctgen.toml`](#profile-toml-schema). Describes the profile behavior, templates and build targets.
 - Templates directory: `assets/templates`. Contains all `handlebars` templates with `.hbs` extension. The main part of the filename is the template name.
 - Scripts directory: `assets/scripts`. Contains all `rhai` scripts with `.rhai` extension. The main part of the filename is used to register the script as handlebars helper.
 
@@ -81,20 +81,20 @@ The `Ctgen.toml` file describes the profile behavior and follows this set of rul
 2. Any number of `prompt` sections after the `profile` section declare profile prompts by assigning a prompt ID as a dot-nested value to the section name, for example `[prompt.dummy]`. A prompt can have the following fields (properties):
 - field `condition`: optional, containing an inline handlebars template that should render `1` to trigger this prompt
 - field `prompt`: containing plain text or an inline handlebars template that is being rendered to the user as prompt text
-- field `options`: optional, containing either an array or table (object) of available options (for select and multiselect prompts), or string (for input prompts), or a handlebars template that renders a comma-separated list of options (for select and multi-select prompts)
-- field `multiple`: optional, boolean flag indicating a multi-select
-- field `required`: optional, boolean flag indicating that empty values will not be accepted
+- field `options`: optional, containing either an array or table (object) of available options (for select and multiselect prompts), or string (for input prompts), or an inline handlebars template that renders a comma-separated list of options (for select and multi-select prompts)
+- field `multiple`: optional, boolean flag indicating a multi-select; default is `false`
+- field `required`: optional, boolean flag indicating that empty values will not be accepted; default is `false`
 3. Any number of `target` sections after the `prompt` sections declare profile build targets by assigning a target ID as a dot-nested value to the section name, for example `[target.dummy]`. A target can have the following fields (properties):
 - field `condition`: optional, containing an inline handlebars template that should render `1` to trigger this target to be rendered
 - field `template`: string containing a template name, which should exist as a file with `.hbs` extension in the `templates-dir` directory. For example `dummy`, or `backend/dummy`.
-- field `target`: string containing an inline handlebars template that should render to a file path inside the `target-dir`. Missing path elements will be created.
-- field `formatter`: optional, containing an inline handlebars template that should render a valid shell command to execute after the target has been rendered and written to disk.
+- field `target`: string containing an inline handlebars template that should render to a file path inside the `target-dir`. Missing path elements will be created. Could also be plain text path like `main.rs`.
+- field `formatter`: optional, containing an inline handlebars template that should render a valid shell command to execute after the target has been rendered and written to disk. Could also be plain text shell command if no context conditional parameters are necessary.
 
 # Notes
 
 - If a rhai script file is named `op.rhai` inside `assets/scripts`, then you will have `{{op}}` helper available in your handlebars templates
 - If your template file is named `backend.hbs` inside `assets/templates`, to define a target that uses that template, use the name `backend` as template name
-- Available helpers (other than handlebars' defaults) are: `{{inflect}}` [handlebars-inflector](https://crates.io/crates/handlebars-inflector), `{{concat}}` [handlebars-concat](https://crates.io/crates/handlebars-concat) and `{{json}}` (takes the first argument and turns it into a JSON)
+- Available helpers (other than [handlebars](https://handlebarsjs.com/guide/builtin-helpers.html#if)' defaults) are: `{{inflect}}` [handlebars-inflector](https://crates.io/crates/handlebars-inflector), `{{concat}}` [handlebars-concat](https://crates.io/crates/handlebars-concat) and `{{json}}` (takes the first argument and turns it into a JSON)
 - The context available during rendering handlebars templates looks roughly like:
 
 ```json
@@ -122,6 +122,10 @@ The `Ctgen.toml` file describes the profile behavior and follows this set of rul
 ```
 
 To dump your own context for debugging purposes use `{{{json this}}}` in your template.
+
+# Acknowledgements
+
+This tool relies heavily on [handlebars-rust](https://github.com/sunng87/handlebars-rust/) and [rhai](https://github.com/rhaiscript/rhai/) crates. :heart:
 
 # TODO
 - improve error handling
