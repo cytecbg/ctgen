@@ -147,6 +147,11 @@ impl CtGen {
             .map_err(|e| CtGenError::InitError(format!("Cannot create config directory: {}", e)))?)
     }
 
+    pub fn get_name_regex() -> Result<Regex> {
+        // validate name
+        Ok(Regex::new(CONFIG_NAME_PATTERN).map_err(|e| CtGenError::ValidationError(format!("Failed to compile regex pattern: {}", e)))?)
+    }
+
     /// Load profiles config file
     async fn load_profiles(config_file: &str) -> Result<IndexMap<String, String>> {
         match tokio::fs::read_to_string(config_file).await {
@@ -209,8 +214,7 @@ impl CtGen {
     /// Add a new profile or replace existing
     pub async fn add_profile(&mut self, name: &str, path: &str) -> Result<CtGenProfile> {
         // validate name
-        let regex =
-            Regex::new(CONFIG_NAME_PATTERN).map_err(|e| CtGenError::ValidationError(format!("Failed to compile regex pattern: {}", e)))?;
+        let regex = CtGen::get_name_regex()?;
 
         // if name is empty we will use the profile defined name later on
         if !name.is_empty() && !regex.is_match(name) {
@@ -288,10 +292,13 @@ impl CtGen {
     }
 
     pub async fn init_profile(&mut self, path: &str, name: &str) -> Result<CtGenProfile> {
+        // validate name
+        let regex = CtGen::get_name_regex()?;
+
         let fullpath = if path == "." || path == "./" {
             // default, cwd
             CtGen::get_current_working_dir()?
-        } else if path.chars().all(char::is_alphanumeric) {
+        } else if regex.is_match(path) {
             // just dir name, must create CWD/dirname if not exist
             CtGen::get_filepath(&CtGen::get_current_working_dir()?, path)
         } else {

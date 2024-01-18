@@ -251,7 +251,7 @@ async fn main() -> Result<()> {
                 //CONFIG_NAME_DEFAULT.to_string()
                 let default_name = if ctgen.get_profiles().contains_key(CONFIG_NAME_DEFAULT) {
                     // there's already a default profile, so we better suggest something else, like for example the path, if it's alphanumeric, or the base directory name of the CWD
-                    if path.chars().all(char::is_alphanumeric) {
+                    if CtGen::get_name_regex()?.is_match(&path) {
                         path.clone()
                     } else {
                         Path::new(&CtGen::get_current_working_dir()?).file_name().unwrap_or_default().to_str().unwrap_or_default().to_string()
