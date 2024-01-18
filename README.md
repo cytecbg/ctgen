@@ -64,6 +64,32 @@ Let's imagine you are generating flutter code for your mobile project. Your prof
 
 Run: `ctgen run --profile=mobile --dsn="mysql://root@127.0.0.1:3306/project_db" --prompt "password_reset=1" --prompt "google_auth=1" clients`
 
+# Profile TOML Schema
+
+The `Ctgen.toml` file describes the profile behavior and follows this set of rules:
+
+1. The first section in the file is called `profile`, this section holds these fields:
+- field `name`: the default profile name
+- field `env-file`: the name of the env file to look for when trying to initialize context, typically `.env`
+- field `env-var`: the name of the env variable to look for in the `.env` file, for example `DATABASE_CONNECTION`; the value of the variable is expected to be a valid DSN
+- field `dsn`: if `env-file` and `env-var` are left empty, the profile could have a hardcoded database DSN instead; otherwise this field could be omitted or left blank
+- field `target-dir`: this is the directory that should hold all build targets. It is relative to current working dir when running a generation task (`ctgen run`). CWD is used if left blank
+- field `templates-dir`: this is the directory that holds all handlebars templates. It is relative to the profile containing directory.
+- field `scripts-dir`: this is the directory that holds all rhai scripts. It is relative to the profile containing directory.
+- field `prompts`: this is an array of strings. Every string in the array must be a valid prompt ID of a prompt defined in the `prompt` sections that follow.
+- field `targets`: this is an array of strings. Every string in the array must be a valid target ID of a target defined in the `target` sections that follow.
+2. Any number of `prompt` sections after the `profile` section declare profile prompts by assigning a prompt ID as a dot-nested value to the section name, for example `[prompt.dummy]`. A prompt can have the following fields (properties):
+- field `condition`: optional, containing an inline handlebars template that should render `1` to trigger this prompt
+- field `prompt`: containing plain text or an inline handlebars template that is being rendered to the user as prompt text
+- field `options`: optional, containing either an array or table (object) of available options (for select and multiselect prompts), or string (for input prompts), or a handlebars template that renders a comma-separated list of options (for select and multi-select prompts)
+- field `multiple`: optional, boolean flag indicating a multi-select
+- field `required`: optional, boolean flag indicating that empty values will not be accepted
+3. Any number of `target` sections after the `prompt` sections declare profile build targets by assigning a target ID as a dot-nested value to the section name, for example `[target.dummy]`. A target can have the following fields (properties):
+- field `condition`: optional, containing an inline handlebars template that should render `1` to trigger this target to be rendered
+- field `template`: string containing a template name, which should exist as a file with `.hbs` extension in the `templates-dir` directory. For example `dummy`, or `backend/dummy`.
+- field `target`: string containing an inline handlebars template that should render to a file path inside the `target-dir`. Missing path elements will be created.
+- field `formatter`: optional, containing an inline handlebars template that should render a valid shell command to execute after the target has been rendered and written to disk.
+
 # Notes
 
 - If a rhai script file is named `op.rhai` inside `assets/scripts`, then you will have `{{op}}` helper available in your handlebars templates

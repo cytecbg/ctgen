@@ -308,6 +308,7 @@ impl CtGen {
         let toml = toml::to_string(&profile)
             .map_err(|e| CtGenError::RuntimeError(format!("Failed to generate toml file: {}", e)))?;
 
+        // TODO hope to one day get rid of this horrific workaround
         let toml = toml.replace("\n[prompt.dummy.options]\n1 = \"Yes\"\n0 = \"No\"", r#"options = { 1 = "Yes", 0 = "No" }"#);
 
         let config_file = CtGen::get_filepath(&fullpath, PROFILE_DEFAULT_FILENAME);
