@@ -14,6 +14,8 @@ Run `cargo install ctgen` (if this project reached the public crate stage).
 Or alternatively clone the repository and run `cargo build --release` and then  
 copy `target/release/ctgen` to a bin path of your choice.
 
+Or just `cargo install --path .`
+
 # Usage
 
 There are 3 modes of operation (commands).
