@@ -187,8 +187,14 @@ async fn main() -> Result<()> {
                         false
                     }) {
                         // TODO unless prompts_unanswered is a cloned set we wouldn't be able to call mutable method
-                        task.set_prompt_answer(unanswered_prompt, Value::from(answered_prompt_answer))
-                            .await?;
+
+                        if answered_prompt_answer.contains(",") {
+                            task.set_prompt_answer(unanswered_prompt, Value::from(answered_prompt_answer.split(",").map(str::to_string).collect::<Vec<String>>()))
+                                .await?;
+                        } else {
+                            task.set_prompt_answer(unanswered_prompt, Value::from(answered_prompt_answer))
+                                .await?;
+                        }
                     }
                 }
             }
