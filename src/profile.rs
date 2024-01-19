@@ -74,7 +74,7 @@ impl CtGenProfile {
         
         let dummy_target = CtGenTarget {
             condition: Some("{{#if (eq prompts/dummy \"1\")}}1{{/if}}".to_string()),
-            template: "dummy.hbs".to_string(),
+            template: "dummy".to_string(),
             target: "dummy.md".to_string(),
             formatter: None,
         };
