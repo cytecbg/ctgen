@@ -405,6 +405,7 @@ impl CtGenTask<'_> {
 
             if !output.status.success() {
                 // TODO handle formatter error
+                println!("Target {} formatter returned error", &target_file);
             }
 
             let formatter_output = String::from_utf8_lossy(&output.stdout);

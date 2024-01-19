@@ -90,7 +90,7 @@ The `Ctgen.toml` file describes the profile behavior and follows this set of rul
 - field `condition`: optional, containing an inline handlebars template that should render `1` to trigger this target to be rendered
 - field `template`: string containing a template name, which should exist as a file with `.hbs` extension in the `templates-dir` directory. For example `dummy`, or `backend/dummy`.
 - field `target`: string containing an inline handlebars template that should render to a file path inside the `target-dir`. Missing path elements will be created. Could also be plain text path like `main.rs`.
-- field `formatter`: optional, containing an inline handlebars template that should render a valid shell command to execute after the target has been rendered and written to disk. Could also be plain text shell command if no context conditional parameters are necessary.
+- field `formatter`: optional, containing an inline handlebars template that should render a valid shell command to execute after the target has been rendered and written to disk. Could also be plain text shell command if no context conditional parameters are necessary. NOTE: The only available variable to render is `{{target}}`.
 
 # Notes
 
