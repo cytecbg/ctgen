@@ -410,7 +410,7 @@ impl CtGenTask<'_> {
             let formatter_output = String::from_utf8_lossy(&output.stdout);
 
             // TODO handle formatter output better
-            println!("Target {} formatter output: {}", target.target() , formatter_output);
+            println!("Target {} formatter output: {}", &target_file, formatter_output);
         }
 
         Ok(())
