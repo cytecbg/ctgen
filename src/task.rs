@@ -429,7 +429,7 @@ impl CtGenTask<'_> {
                     let evaluated_condition = self.render(condition)?;
 
                     if evaluated_condition.trim() != "1" {
-                        break;
+                        continue;
                     }
                 }
 

@@ -412,7 +412,7 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
 
                 Ok(Value::from(results))
             }
-        } else if options.is_object() && options.as_object().unwrap().keys().eq(["0", "1"].iter()) {
+        } else if options.is_object() && options.as_object().unwrap().keys().all(|e| ["0", "1"].contains(&e.as_str())) {
             // confirm
 
             if Confirm::with_theme(&ColorfulTheme::default())
