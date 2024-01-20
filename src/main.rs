@@ -66,8 +66,8 @@ pub enum Commands {
         name: Option<String>,
 
         #[arg(default_value = ".")]
-        path: String
-    }
+        path: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -144,7 +144,7 @@ async fn main() -> Result<()> {
                 print_info(format!("Removed profile {}", style(name).cyan()));
 
                 Ok(())
-            },
+            }
         },
         Commands::Run {
             profile,
@@ -189,8 +189,11 @@ async fn main() -> Result<()> {
                         // TODO unless prompts_unanswered is a cloned set we wouldn't be able to call mutable method
 
                         if answered_prompt_answer.contains(",") {
-                            task.set_prompt_answer(unanswered_prompt, Value::from(answered_prompt_answer.split(",").map(str::to_string).collect::<Vec<String>>()))
-                                .await?;
+                            task.set_prompt_answer(
+                                unanswered_prompt,
+                                Value::from(answered_prompt_answer.split(",").map(str::to_string).collect::<Vec<String>>()),
+                            )
+                            .await?;
                         } else {
                             task.set_prompt_answer(unanswered_prompt, Value::from(answered_prompt_answer))
                                 .await?;
@@ -250,7 +253,7 @@ async fn main() -> Result<()> {
             print_info("Running ctgen task");
             Ok(task.run().await?)
         }
-        Commands::Init { name, path} => {
+        Commands::Init { name, path } => {
             let name = if let Some(name) = name {
                 name
             } else {
@@ -260,7 +263,12 @@ async fn main() -> Result<()> {
                     if CtGen::get_name_regex()?.is_match(&path) {
                         path.clone()
                     } else {
-                        Path::new(&CtGen::get_current_working_dir()?).file_name().unwrap_or_default().to_str().unwrap_or_default().to_string()
+                        Path::new(&CtGen::get_current_working_dir()?)
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_str()
+                            .unwrap_or_default()
+                            .to_string()
                     }
                 } else {
                     CONFIG_NAME_DEFAULT.to_string()
@@ -303,7 +311,7 @@ async fn list_profiles(ctgen: &CtGen) {
 
         let total = ctgen.get_profiles().len();
         for (idx, (profile_name, profile_file)) in ctgen.get_profiles().iter().enumerate() {
-            let idx_label = format!("[{}/{}]", (idx+1), total);
+            let idx_label = format!("[{}/{}]", (idx + 1), total);
 
             let profile_name_label = if CtGenProfile::load(profile_file, profile_name).await.is_ok() {
                 if profile_name == CONFIG_NAME_DEFAULT {
@@ -315,7 +323,12 @@ async fn list_profiles(ctgen: &CtGen) {
                 style(profile_name).red().blink()
             };
 
-            println!("{}\t{}\t{}", style(idx_label).dim(), profile_name_label, style(profile_file).underlined());
+            println!(
+                "{}\t{}\t{}",
+                style(idx_label).dim(),
+                profile_name_label,
+                style(profile_file).underlined()
+            );
         }
     } else {
         print_fail("No profiles found.");

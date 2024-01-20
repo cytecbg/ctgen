@@ -11,7 +11,7 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
 use std::env;
-use std::path::{MAIN_SEPARATOR};
+use std::path::MAIN_SEPARATOR;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Clone, Default, Debug)]
@@ -312,11 +312,13 @@ impl CtGen {
         CtGen::init_config_dir(profile.templates_dir().as_str()).await?;
         CtGen::init_config_dir(profile.scripts_dir().as_str()).await?;
 
-        let toml = toml::to_string(&profile)
-            .map_err(|e| CtGenError::RuntimeError(format!("Failed to generate toml file: {}", e)))?;
+        let toml = toml::to_string(&profile).map_err(|e| CtGenError::RuntimeError(format!("Failed to generate toml file: {}", e)))?;
 
         // TODO hope to one day get rid of this horrific workaround
-        let toml = toml.replace("\n[prompt.dummy.options]\n1 = \"Yes\"\n0 = \"No\"", r#"options = { 1 = "Yes", 0 = "No" }"#);
+        let toml = toml.replace(
+            "\n[prompt.dummy.options]\n1 = \"Yes\"\n0 = \"No\"",
+            r#"options = { 1 = "Yes", 0 = "No" }"#,
+        );
 
         let config_file = CtGen::get_filepath(&fullpath, PROFILE_DEFAULT_FILENAME);
 
@@ -358,7 +360,7 @@ impl CtGen {
                 .map_err(|e| CtGenError::RuntimeError(format!("Failed to flush template file: {}", e)))?;
         }
 
-        self.add_profile(name,&config_file).await
+        self.add_profile(name, &config_file).await
     }
 
     pub async fn create_task(

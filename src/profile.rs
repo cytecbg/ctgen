@@ -71,7 +71,7 @@ impl CtGenProfile {
 
         let mut prompts = HashMap::new();
         prompts.insert("dummy".to_string(), dummy_prompt);
-        
+
         let dummy_target = CtGenTarget {
             condition: Some("{{#if (eq prompts/dummy \"1\")}}1{{/if}}".to_string()),
             template: "dummy".to_string(),
@@ -81,7 +81,7 @@ impl CtGenProfile {
 
         let mut targets = HashMap::new();
         targets.insert("dummy".to_string(), dummy_target);
-        
+
         CtGenProfile {
             name: name.to_string(),
             profile: CtGenProfileConfig {
@@ -388,5 +388,4 @@ impl CtGenTarget {
     pub fn formatter(&self) -> Option<&str> {
         self.formatter.as_deref()
     }
-
 }
