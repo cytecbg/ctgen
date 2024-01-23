@@ -231,6 +231,8 @@ async fn main() -> Result<()> {
                         CtGenTaskPrompt::PromptGeneric { prompt_id: _, prompt_data } => {
                             let rendered_prompt = task.render_prompt(&prompt_data)?;
 
+                            // TODO handle enumerations
+
                             let mut answer = Value::from("");
                             if rendered_prompt.should_ask() {
                                 answer = ask_prompt(
