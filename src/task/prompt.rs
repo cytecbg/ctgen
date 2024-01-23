@@ -11,15 +11,17 @@ pub enum CtGenTaskPrompt {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CtGenRenderedPrompt {
     should_ask: bool,
+    enumerate: Option<Vec<String>>,
     prompt: String,
     options: serde_json::Value,
     multiple: bool,
 }
 
 impl CtGenRenderedPrompt {
-    pub fn new(should_ask: bool, prompt: String, options: serde_json::Value, multiple: bool) -> CtGenRenderedPrompt {
+    pub fn new(should_ask: bool, enumerate: Option<Vec<String>>, prompt: String, options: serde_json::Value, multiple: bool) -> CtGenRenderedPrompt {
         CtGenRenderedPrompt {
             should_ask,
+            enumerate,
             prompt,
             options,
             multiple,
@@ -28,6 +30,9 @@ impl CtGenRenderedPrompt {
 
     pub fn should_ask(&self) -> bool {
         self.should_ask
+    }
+    pub fn enumerate(&self) -> Option<&Vec<String>> {
+        self.enumerate.as_ref()
     }
     pub fn prompt(&self) -> &str {
         &self.prompt

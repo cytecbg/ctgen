@@ -454,6 +454,13 @@ impl CtGenTask<'_> {
             None
         };
 
+        // if enumerate property is set, evaluate it to decide whether to proceed with the prompt and to gather enumerations
+        let enumerate = if let Some(enumerate) = prompt.enumerate() {
+            self.render(enumerate).ok().map(|s|s.split(",").map(str::to_string).collect::<Vec<String>>())
+        } else {
+            None
+        };
+
         // render prompt text
         let prompt_text = self.render(prompt.prompt())?;
 
@@ -473,7 +480,7 @@ impl CtGenTask<'_> {
 
         let condition_met = condition.is_none() || condition.is_some_and(|s| s.trim() == "1");
 
-        Ok(CtGenRenderedPrompt::new(condition_met, prompt_text, options, prompt.multiple()))
+        Ok(CtGenRenderedPrompt::new(condition_met, enumerate, prompt_text, options, prompt.multiple()))
     }
 
     /// Get context data

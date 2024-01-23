@@ -63,6 +63,7 @@ impl CtGenProfile {
 
         let dummy_prompt = CtGenPrompt {
             condition: None,
+            enumerate: None,
             prompt: "Would you like to render the dummy target?".to_string(),
             options: toml::Value::Table(options_table),
             multiple: false,
@@ -310,6 +311,8 @@ impl CtGenProfileConfigOverrides {
 pub struct CtGenPrompt {
     /// Handlebars template that receives the up-to-date context. Must render to "1" to proceed
     condition: Option<String>,
+    /// Handlebars template that receives the up-to-date context. Produces comma-separated list. Enumerate prompt for each of the following values
+    enumerate: Option<String>,
     /// Handlebars template that receives the up-to-date context. Renders the actual text for the prompt
     prompt: String,
     #[serde(default = "CtGenPrompt::default_options")]
@@ -340,6 +343,10 @@ impl CtGenPrompt {
     /// Prompt condition template. If it doesn't evaluate to "1", the prompt will be skipped
     pub fn condition(&self) -> Option<&str> {
         self.condition.as_deref()
+    }
+    /// Prompt enumerator template. If it doesn't evaluate to a comma-separated list, prompt will be skipped
+    pub fn enumerate(&self) -> Option<&str> {
+        self.enumerate.as_deref()
     }
     /// Prompt text template. The template that renders the prompt text
     pub fn prompt(&self) -> &str {
