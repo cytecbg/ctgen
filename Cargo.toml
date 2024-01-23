@@ -26,3 +26,10 @@ walkdir = "^2"
 console = "^0.15"
 dialoguer = { version = "^0.10", features = ["history"] }
 indicatif = "^0.17"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

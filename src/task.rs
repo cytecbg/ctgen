@@ -20,6 +20,7 @@ use std::env;
 use std::path::Path;
 use std::slice::Iter;
 use std::str::FromStr;
+use futures::future::{try_join_all};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::join;
@@ -423,6 +424,8 @@ impl CtGenTask<'_> {
             return Err(CtGenError::RuntimeError("Context not ready to run all render tasks.".to_string()).into());
         }
 
+        let mut futures = Vec::new();
+
         for target_name in self.profile.targets() {
             if let Some(target) = self.profile.target(target_name) {
                 if let Some(condition) = target.condition() {
@@ -433,9 +436,11 @@ impl CtGenTask<'_> {
                     }
                 }
 
-                self.render_target(target).await?;
+                futures.push(self.render_target(target));
             }
         }
+
+        try_join_all(futures).await?;
 
         Ok(())
     }
