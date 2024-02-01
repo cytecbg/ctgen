@@ -260,7 +260,7 @@ impl CtGen {
 
     pub async fn remove_profile(&mut self, name: &str) -> Result<()> {
         if self.profiles.contains_key(name) {
-            self.profiles.remove(name);
+            self.profiles.swap_remove(name);
         }
 
         if let Some(profile) = self.current_profile.clone() {
