@@ -85,6 +85,7 @@ The `Ctgen.toml` file describes the profile behavior and follows this set of rul
 - field `prompt`: containing plain text or an inline handlebars template that is being rendered to the user as prompt text
 - field `options`: optional, containing either an array or table (object) of available options (for select and multiselect prompts), or string (for input prompts), or an inline handlebars template that renders a comma-separated list of options (for select and multi-select prompts)
 - field `multiple`: optional, boolean flag indicating a multi-select; default is `false`
+- field `ordered`: optional, boolean flag indicating that order matters for multi-select values; default is `false`
 - field `required`: optional, boolean flag indicating that empty values will not be accepted; default is `false`
 3. Any number of `target` sections after the `prompt` sections declare profile build targets by assigning a target ID as a dot-nested value to the section name, for example `[target.dummy]`. A target can have the following fields (properties):
 - field `condition`: optional, containing an inline handlebars template that should render `1` to trigger this target to be rendered
