@@ -67,6 +67,7 @@ impl CtGenProfile {
             prompt: "Would you like to render the dummy target?".to_string(),
             options: toml::Value::Table(options_table),
             multiple: false,
+            ordered: false,
             required: false,
         };
 
@@ -321,6 +322,9 @@ pub struct CtGenPrompt {
     #[serde(default = "CtGenPrompt::default_multiple")]
     /// Flag that controls whether we allow a single answer or multiple choice
     multiple: bool,
+    #[serde(default = "CtGenPrompt::default_ordered")]
+    /// Flag that controls whether we care about the order of multiple valued prompts
+    ordered: bool,
     #[serde(default = "CtGenPrompt::default_required")]
     /// Flag that controls whether empty answers are allowed
     required: bool,
@@ -339,6 +343,8 @@ impl CtGenPrompt {
     pub fn default_required() -> bool {
         false
     }
+    /// Default ordered flag value
+    pub fn default_ordered() -> bool { false }
 
     /// Prompt condition template. If it doesn't evaluate to "1", the prompt will be skipped
     pub fn condition(&self) -> Option<&str> {
@@ -360,6 +366,8 @@ impl CtGenPrompt {
     pub fn multiple(&self) -> bool {
         self.multiple
     }
+    /// Flag that controls whether we care about the order of multiple valued prompts
+    pub fn ordered(&self) -> bool { self.ordered }
     /// Flag that controls empty answers
     pub fn required(&self) -> bool {
         self.required

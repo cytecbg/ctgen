@@ -188,10 +188,10 @@ async fn main() -> Result<()> {
                     }) {
                         // TODO unless prompts_unanswered is a cloned set we wouldn't be able to call mutable method
 
-                        if answered_prompt_answer.contains(",") {
+                        if answered_prompt_answer.contains(',') {
                             task.set_prompt_answer(
                                 unanswered_prompt,
-                                Value::from(answered_prompt_answer.split(",").map(str::to_string).collect::<Vec<String>>()),
+                                Value::from(answered_prompt_answer.split(',').map(str::to_string).collect::<Vec<String>>()),
                             )
                             .await?;
                         } else {
@@ -217,14 +217,14 @@ async fn main() -> Result<()> {
                         CtGenTaskPrompt::PromptDatabase => {
                             let options = Value::from(task.reflection_adapter().list_database_names().await?);
 
-                            let answer = ask_prompt("Enter database name:", Some(&options), false).await?;
+                            let answer = ask_prompt("Enter database name:", Some(&options), false, false).await?;
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
                         CtGenTaskPrompt::PromptTable => {
                             let options = Value::from(task.reflection_adapter().list_table_names().await?);
 
-                            let answer = ask_prompt("Enter table name:", Some(&options), false).await?;
+                            let answer = ask_prompt("Enter table name:", Some(&options), false, false).await?;
 
                             task.set_prompt_answer(&unanswered_prompt, answer).await?;
                         }
@@ -239,6 +239,7 @@ async fn main() -> Result<()> {
                                     rendered_prompt.prompt(),
                                     Some(rendered_prompt.options()),
                                     rendered_prompt.multiple(),
+                                    rendered_prompt.ordered()
                                 )
                                 .await?;
                             }
@@ -277,7 +278,7 @@ async fn main() -> Result<()> {
                 };
 
                 loop {
-                    let answer = ask_prompt("Enter profile name:", Some(&Value::String(default_name.clone())), false).await;
+                    let answer = ask_prompt("Enter profile name:", Some(&Value::String(default_name.clone())), false, false).await;
 
                     if answer.as_ref().is_ok_and(|v| v.as_str().is_some_and(|s| !s.is_empty())) {
                         break answer.unwrap().as_str().unwrap().to_string();
@@ -338,7 +339,7 @@ async fn list_profiles(ctgen: &CtGen) {
 }
 
 /// Ask prompt
-async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) -> Result<Value> {
+async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, ordered: bool) -> Result<Value> {
     return if let Some(options) = options {
         if options.is_string() {
             //input with default suggestion
@@ -382,7 +383,7 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool) 
                 .interact()
                 .unwrap();
 
-            let (multiselected, selections) = if Confirm::with_theme(&ColorfulTheme::default())
+            let (multiselected, selections) = if ordered && selections.len() > 1 && Confirm::with_theme(&ColorfulTheme::default())
                 .with_prompt("Would you like to sort this selection?")
                 .wait_for_newline(true)
                 .report(true)
