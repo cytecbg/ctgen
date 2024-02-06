@@ -15,18 +15,25 @@ pub struct CtGenRenderedPrompt {
     prompt: String,
     options: serde_json::Value,
     multiple: bool,
-    ordered: bool
+    ordered: bool,
 }
 
 impl CtGenRenderedPrompt {
-    pub fn new(should_ask: bool, enumerate: Option<Vec<String>>, prompt: String, options: serde_json::Value, multiple: bool, ordered: bool) -> CtGenRenderedPrompt {
+    pub fn new(
+        should_ask: bool,
+        enumerate: Option<Vec<String>>,
+        prompt: String,
+        options: serde_json::Value,
+        multiple: bool,
+        ordered: bool,
+    ) -> CtGenRenderedPrompt {
         CtGenRenderedPrompt {
             should_ask,
             enumerate,
             prompt,
             options,
             multiple,
-            ordered
+            ordered,
         }
     }
 
@@ -45,5 +52,7 @@ impl CtGenRenderedPrompt {
     pub fn multiple(&self) -> bool {
         self.multiple
     }
-    pub fn ordered(&self) -> bool { self.ordered }
+    pub fn ordered(&self) -> bool {
+        self.ordered
+    }
 }

@@ -239,7 +239,7 @@ async fn main() -> Result<()> {
                                     rendered_prompt.prompt(),
                                     Some(rendered_prompt.options()),
                                     rendered_prompt.multiple(),
-                                    rendered_prompt.ordered()
+                                    rendered_prompt.ordered(),
                                 )
                                 .await?;
                             }
@@ -383,12 +383,14 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
                 .interact()
                 .unwrap();
 
-            let (multiselected, selections) = if ordered && selections.len() > 1 && Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt("Would you like to sort this selection?")
-                .wait_for_newline(true)
-                .report(true)
-                .interact()
-                .unwrap()
+            let (multiselected, selections) = if ordered
+                && selections.len() > 1
+                && Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Would you like to sort this selection?")
+                    .wait_for_newline(true)
+                    .report(true)
+                    .interact()
+                    .unwrap()
             {
                 let subset = multiselected
                     .iter()

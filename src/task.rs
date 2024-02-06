@@ -10,6 +10,7 @@ use crate::CtGen;
 use anyhow::Result;
 use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter;
 use database_reflection::adapter::reflection_adapter::{Connected, ReflectionAdapter, ReflectionAdapterUninitialized};
+use futures::future::try_join_all;
 use handlebars::{handlebars_helper, DirectorySourceOptions, Handlebars};
 use handlebars_concat::HandlebarsConcat;
 use handlebars_inflector::HandlebarsInflector;
@@ -20,7 +21,6 @@ use std::env;
 use std::path::Path;
 use std::slice::Iter;
 use std::str::FromStr;
-use futures::future::{try_join_all};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::join;
@@ -456,7 +456,9 @@ impl CtGenTask<'_> {
 
         // if enumerate property is set, evaluate it to decide whether to proceed with the prompt and to gather enumerations
         let enumerate = if let Some(enumerate) = prompt.enumerate() {
-            self.render(enumerate).ok().map(|s|s.split(',').map(str::to_string).collect::<Vec<String>>())
+            self.render(enumerate)
+                .ok()
+                .map(|s| s.split(',').map(str::to_string).collect::<Vec<String>>())
         } else {
             None
         };
@@ -480,7 +482,14 @@ impl CtGenTask<'_> {
 
         let condition_met = condition.is_none() || condition.is_some_and(|s| s.trim() == "1");
 
-        Ok(CtGenRenderedPrompt::new(condition_met, enumerate, prompt_text, options, prompt.multiple(), prompt.ordered()))
+        Ok(CtGenRenderedPrompt::new(
+            condition_met,
+            enumerate,
+            prompt_text,
+            options,
+            prompt.multiple(),
+            prompt.ordered(),
+        ))
     }
 
     /// Get context data

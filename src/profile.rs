@@ -344,7 +344,9 @@ impl CtGenPrompt {
         false
     }
     /// Default ordered flag value
-    pub fn default_ordered() -> bool { false }
+    pub fn default_ordered() -> bool {
+        false
+    }
 
     /// Prompt condition template. If it doesn't evaluate to "1", the prompt will be skipped
     pub fn condition(&self) -> Option<&str> {
@@ -367,7 +369,9 @@ impl CtGenPrompt {
         self.multiple
     }
     /// Flag that controls whether we care about the order of multiple valued prompts
-    pub fn ordered(&self) -> bool { self.ordered }
+    pub fn ordered(&self) -> bool {
+        self.ordered
+    }
     /// Flag that controls empty answers
     pub fn required(&self) -> bool {
         self.required
