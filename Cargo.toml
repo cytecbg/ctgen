@@ -2,6 +2,15 @@
 name = "ctgen"
 version = "0.1.0"
 edition = "2021"
+authors = ["Ivan Ganev <iganev@cytec.bg>"]
+description = "Code Generator based on Handlebars Templates and Database Reflection"
+keywords = ["handlebars", "database", "codegen", "code", "generator"]
+categories = ["template-engine", "command-line-utilities", "development-tools", "database"]
+homepage = "https://github.com/cytecbg/ctgen"
+repository = "https://github.com/cytecbg/ctgen"
+documentation = "https://docs.rs/crate/ctgen/"
+readme = "README.md"
+license = "MIT"
 
 [dependencies]
 futures = "^0"
