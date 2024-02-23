@@ -16,6 +16,8 @@ copy `target/release/ctgen` to a bin path of your choice.
 
 Or just `cargo install --path .`
 
+To see some hands-on examples, check [ctgen-samples](https://github.com/cytecbg/ctgen-samples).
+
 # Usage
 
 There are 3 modes of operation (commands).
