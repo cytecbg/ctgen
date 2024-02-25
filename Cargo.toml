@@ -1,6 +1,6 @@
 [package]
 name = "ctgen"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Ivan Ganev <iganev@cytec.bg>"]
 description = "Code Generator based on Handlebars Templates and Database Reflection"
