@@ -14,7 +14,7 @@ license = "MIT"
 
 [dependencies]
 futures = "^0"
-tokio = { version = "^1", features = ["full"] }
+tokio = { version = "^1.36", features = ["full"] }
 
 log = "^0"
 env_logger = "^0"
@@ -26,7 +26,7 @@ dirs = "^5"
 walkdir = "^2"
 
 toml = { version = "^0", features = ["preserve_order"] }
-regex = "^1"
+regex = "^1.10"
 
 indexmap = { version = "^2", features = ["serde"] }
 serde_json = { version = "^1", features = ["preserve_order"] }
