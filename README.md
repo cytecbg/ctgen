@@ -103,7 +103,7 @@ The `Ctgen.toml` file describes the profile behavior and follows this set of rul
 
 - If a rhai script file is named `op.rhai` inside `assets/scripts`, then you will have `{{op}}` helper available in your handlebars templates
 - If your template file is named `backend.hbs` inside `assets/templates`, to define a target that uses that template, use the name `backend` as template name
-- Available helpers (other than [handlebars](https://handlebarsjs.com/guide/builtin-helpers.html#if)' defaults) are: `{{inflect}}` [handlebars-inflector](https://crates.io/crates/handlebars-inflector), `{{concat}}` [handlebars-concat](https://crates.io/crates/handlebars-concat) and `{{json}}` (takes the first argument and turns it into a JSON)
+- Available helpers (other than [handlebars](https://handlebarsjs.com/guide/builtin-helpers.html#if)' defaults) are: `{{inflect}}` [handlebars-inflector](https://crates.io/crates/handlebars-inflector), `{{concat}}` [handlebars-concat](https://crates.io/crates/handlebars-concat), `{{datetime}}` [handlebars-chrono](https://crates.io/crates/handlebars-chrono)  and `{{json}}` (takes the first argument and turns it into a JSON)
 - The context available during rendering handlebars templates looks roughly like:
 
 ```json
@@ -126,7 +126,9 @@ The `Ctgen.toml` file describes the profile behavior and follows this set of rul
   "constraints_foreign": [],
   "prompts": {
     "dummy": "1"
-  }
+  },
+  "timestamp": "2024-03-18T21:35:09.750752900+00:00",
+  "ctgen_ver": "0.1.2"
 }
 ```
 

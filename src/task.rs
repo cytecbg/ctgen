@@ -21,6 +21,7 @@ use std::env;
 use std::path::Path;
 use std::slice::Iter;
 use std::str::FromStr;
+use handlebars_chrono::HandlebarsChronoDateTime;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::join;
@@ -223,6 +224,7 @@ impl CtGenTask<'_> {
 
         handlebars.register_helper("concat", Box::new(HandlebarsConcat));
         handlebars.register_helper("inflect", Box::new(HandlebarsInflector));
+        handlebars.register_helper("datetime", Box::new(HandlebarsChronoDateTime));
 
         handlebars_helper!(json: |input: Value| serde_json::to_string(&input).unwrap_or(String::from("{}")));
         handlebars.register_helper("json", Box::new(json));
