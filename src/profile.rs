@@ -121,7 +121,10 @@ impl CtGenProfile {
 
         // validate targets template existence
         for target_name in self.targets() {
-            let target = self.target(target_name).unwrap();
+            let target = self.target(target_name).ok_or(CtGenError::ValidationError(format!(
+                "Invalid target `{}`. Make sure all included targets are actually declared.",
+                target_name
+            )))?;
 
             let template_canonical_path = CtGen::get_filepath(&canonical_templates_dir, format!("{}.hbs", target.template()).as_str());
 

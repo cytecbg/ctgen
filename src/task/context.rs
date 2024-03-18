@@ -1,5 +1,6 @@
 use crate::error::CtGenError;
 use anyhow::Result;
+use chrono::Utc;
 use database_reflection::reflection::{Constraint, ConstraintSide, Database, Table};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -14,6 +15,8 @@ pub struct CtGenTaskContext {
     constraints_local: Vec<Arc<Constraint>>,
     constraints_foreign: Vec<Arc<Constraint>>,
     prompts: HashMap<String, Value>,
+    timestamp: String,
+    ctgen_ver: String,
 }
 
 impl CtGenTaskContext {
@@ -32,6 +35,8 @@ impl CtGenTaskContext {
             table,
             constraints_local,
             constraints_foreign,
+            timestamp: Utc::now().to_rfc3339(),
+            ctgen_ver: env!("CARGO_PKG_VERSION").into(),
             ..Default::default()
         })
     }

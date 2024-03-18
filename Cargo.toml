@@ -1,6 +1,6 @@
 [package]
 name = "ctgen"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Ivan Ganev <iganev@cytec.bg>"]
 description = "Code Generator based on Handlebars Templates and Database Reflection"
@@ -15,23 +15,32 @@ license = "MIT"
 [dependencies]
 futures = "^0"
 tokio = { version = "^1", features = ["full"] }
+
 log = "^0"
 env_logger = "^0"
 anyhow = "^1.0"
 dotenvy = "^0"
 clap = { version = "^4", features = ["derive"] }
+
 dirs = "^5"
+walkdir = "^2"
+
 toml = { version = "^0", features = ["preserve_order"] }
 regex = "^1"
+
 indexmap = { version = "^2", features = ["serde"] }
 serde_json = { version = "^1", features = ["preserve_order"] }
 serde = { version = "^1", features = ["derive"] }
+
 database-reflection = { version = "^0", features = ["mariadb"] }
 sqlx = { version = "^0.7", features = ["runtime-tokio-rustls", "mysql"]}
+
 handlebars = { version = "^5", features = ["dir_source", "script_helper"] }
 handlebars-inflector = "^0.2.0"
 handlebars-concat = "^0.2.0"
-walkdir = "^2"
+handlebars-chrono = { version = "^0", features = [ "locale", "timezone" ] }
+chrono = { version = "^0.4.26" }
+
 console = "^0.15"
 dialoguer = { version = "^0.11", features = ["history"] }
 indicatif = "^0.17"
