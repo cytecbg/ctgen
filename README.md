@@ -1,7 +1,7 @@
 [![Crates.io](https://img.shields.io/crates/v/ctgen?color=4d76ae)](https://crates.io/crates/ctgen)
 [![API](https://docs.rs/ctgen/badge.svg)](https://docs.rs/ctgen)
 [![dependency status](https://deps.rs/repo/github/cytecbg/ctgen/status.svg)](https://deps.rs/repo/github/cytecbg/ctgen)
-[![Build](https://github.com/cytecbg/ctgen/actions/workflows/rust.yml/badge.svg)](https://github.com/cytecbg/ctgen/actions/workflows/rust.yml)
+[![build](https://github.com/cytecbg/ctgen/actions/workflows/rust.yml/badge.svg)](https://github.com/cytecbg/ctgen/actions/workflows/rust.yml)
 
 # About
 Code generation tool meant to reduce repetitive tasks in day-to-day operations. 
