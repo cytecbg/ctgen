@@ -39,6 +39,8 @@ handlebars = { version = "^5", features = ["dir_source", "script_helper"] }
 handlebars-inflector = "^0.2.0"
 handlebars-concat = "^0.2.0"
 handlebars-chrono = { version = "^0", features = [ "locale", "timezone" ] }
+rhai = { version = "^1.17.1", features = [ "sync", "serde" ] }
+rhai-chrono = { version = "^0", features = ["sync"] }
 chrono = { version = "^0.4.26" }
 
 console = "^0.15"

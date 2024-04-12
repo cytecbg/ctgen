@@ -12,8 +12,12 @@ use database_reflection::adapter::mariadb_innodb::MariadbInnodbReflectionAdapter
 use database_reflection::adapter::reflection_adapter::{Connected, ReflectionAdapter, ReflectionAdapterUninitialized};
 use futures::future::try_join_all;
 use handlebars::{handlebars_helper, DirectorySourceOptions, Handlebars};
+use handlebars_chrono::HandlebarsChronoDateTime;
 use handlebars_concat::HandlebarsConcat;
 use handlebars_inflector::HandlebarsInflector;
+use rhai::packages::Package;
+use rhai::Engine;
+use rhai_chrono::ChronoPackage;
 use serde_json::{json, Value};
 use sqlx::MySql;
 use std::collections::HashMap;
@@ -21,7 +25,6 @@ use std::env;
 use std::path::Path;
 use std::slice::Iter;
 use std::str::FromStr;
-use handlebars_chrono::HandlebarsChronoDateTime;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::join;
@@ -186,6 +189,15 @@ impl CtGenTask<'_> {
 
         // init renderer
         let mut handlebars = Handlebars::new();
+
+        // init rhai
+        let mut rhai_engine = Engine::new();
+
+        // register rhai-chrono
+        let rhai_chrono = ChronoPackage::new();
+        rhai_chrono.register_into_engine(&mut rhai_engine);
+
+        handlebars.set_engine(rhai_engine);
 
         handlebars.register_templates_directory(profile.templates_dir(), DirectorySourceOptions::default())?;
 
