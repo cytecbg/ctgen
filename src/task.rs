@@ -18,6 +18,9 @@ use handlebars_inflector::HandlebarsInflector;
 use rhai::packages::Package;
 use rhai::Engine;
 use rhai_chrono::ChronoPackage;
+use rhai_fs::FilesystemPackage;
+use rhai_sci::SciPackage;
+use rhai_url::UrlPackage;
 use serde_json::{json, Value};
 use sqlx::MySql;
 use std::collections::HashMap;
@@ -196,6 +199,18 @@ impl CtGenTask<'_> {
         // register rhai-chrono
         let rhai_chrono = ChronoPackage::new();
         rhai_chrono.register_into_engine(&mut rhai_engine);
+
+        // register rhai-sci
+        let rhai_sci = SciPackage::new();
+        rhai_sci.register_into_engine(&mut rhai_engine);
+
+        // register rhai-fs
+        let rhai_fs = FilesystemPackage::new();
+        rhai_fs.register_into_engine(&mut rhai_engine);
+
+        // register rhai-url
+        let rhai_url = UrlPackage::new();
+        rhai_url.register_into_engine(&mut rhai_engine);
 
         handlebars.set_engine(rhai_engine);
 
