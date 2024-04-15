@@ -30,6 +30,15 @@ There are 3 modes of operation (commands).
 2. The [`config`](#manage-profiles) command is for managing existing configuration profiles.
 3. The [`run`](#run-tasks) command is for running a generation task inside another project.
 
+# Disclaimer
+
+Under no circumstances should you ever run generation tasks based on templates you are not very well familiar with! This poses a great security threat!
+When using `ctgen` with templates that you did not create yourself you should read and study the code carefully **before** running any tasks with 
+that template! Ctgen can and does modify your local filesystem and has the capability to execute additional shell commands with our without user input!
+
+Under no circumstances should you ever run `ctgen` as `root` or any other privileged account! As of time of writing `ctgen` does NOT have any mechanisms to 
+predict or prevent any potentially negative outcomes or dangerous operations. Use discretion and study the templates you use **before** attempting to run any tasks!
+
 ## Create profile
 
 To create your first configuration profile go somewhere in your filesystem and run `ctgen init`.  
