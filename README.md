@@ -4,7 +4,8 @@
 [![build](https://github.com/cytecbg/ctgen/actions/workflows/rust.yml/badge.svg)](https://github.com/cytecbg/ctgen/actions/workflows/rust.yml)
 
 # About
-Code generation tool meant to reduce repetitive tasks in day-to-day operations. 
+
+Code generation tool meant to reduce repetitive tasks in day-to-day operations.
 
 Generate code or text documents based on pre-defined code templates and a database schema.
 
@@ -26,6 +27,7 @@ To see some hands-on examples, check [ctgen-samples](https://github.com/cytecbg/
 # Usage
 
 There are 3 modes of operation (commands).
+
 1. The [`init`](#create-profile) command is for creating a new configuration profile project.
 2. The [`config`](#manage-profiles) command is for managing existing configuration profiles.
 3. The [`run`](#run-tasks) command is for running a generation task inside another project.
@@ -33,15 +35,15 @@ There are 3 modes of operation (commands).
 # Disclaimer
 
 Under no circumstances should you ever run generation tasks based on templates you are not very well familiar with! This poses a great security threat!
-When using `ctgen` with templates that you did not create yourself you should read and study the code carefully **before** running any tasks with 
+When using `ctgen` with templates that you did not create yourself you should read and study the code carefully **before** running any tasks with
 that template! Ctgen can and does modify your local filesystem and has the capability to execute additional shell commands with or without user input!
 
-Under no circumstances should you ever run `ctgen` as `root` or any other privileged account! As of time of writing `ctgen` does NOT have any mechanisms to 
+Under no circumstances should you ever run `ctgen` as `root` or any other privileged account! As of time of writing `ctgen` does NOT have any mechanisms to
 predict or prevent any potentially negative outcomes or dangerous operations. Use discretion and study the templates you use **before** attempting to run any tasks!
 
 ## Create profile
 
-To create your first configuration profile go somewhere in your filesystem and run `ctgen init`.  
+To create your first configuration profile go somewhere in your filesystem and run `ctgen init`.
 
 Optionally you can create the profile project in a new directory by running `ctgen init <dirname>`.
 
@@ -50,6 +52,7 @@ To avoid being prompted for a profile name, use the `--name` option: `ctgen init
 This will create a new configuration profile project and register it using the same name.
 
 The default project layout is:
+
 - Profile config file: [`Ctgen.toml`](#profile-toml-schema). Describes the profile behavior, templates and build targets.
 - Templates directory: `assets/templates`. Contains all `handlebars` templates with `.hbs` extension. The main part of the filename is the template name.
 - Scripts directory: `assets/scripts`. Contains all `rhai` scripts with `.rhai` extension. The main part of the filename is used to register the script as handlebars helper.
@@ -70,7 +73,7 @@ Assuming you have a valid configuration profile setup already (see above), to ru
 - ???
 - PROFIT
 
-Check `ctgen help run` for extra options like: 
+Check `ctgen help run` for extra options like:
 
 - Choosing a profile other than the `default` using `--profile=flutter`
 - Overriding the profile setting for `.env` file, environment variable name, DSN string or target path
@@ -87,6 +90,7 @@ Run: `ctgen run --profile=mobile --dsn="mysql://root@127.0.0.1:3306/project_db" 
 The `Ctgen.toml` file describes the profile behavior and follows this set of rules:
 
 1. The first section in the file is called `profile`, this section holds these fields:
+
 - field `name`: the default profile name
 - field `env-file`: the name of the env file to look for when trying to initialize context, typically `.env`
 - field `env-var`: the name of the env variable to look for in the `.env` file, for example `DATABASE_CONNECTION`; the value of the variable is expected to be a valid DSN
@@ -96,14 +100,18 @@ The `Ctgen.toml` file describes the profile behavior and follows this set of rul
 - field `scripts-dir`: this is the directory that holds all rhai scripts. It is relative to the profile containing directory.
 - field `prompts`: this is an array of strings. Every string in the array must be a valid prompt ID of a prompt defined in the `prompt` sections that follow.
 - field `targets`: this is an array of strings. Every string in the array must be a valid target ID of a target defined in the `target` sections that follow.
+
 2. Any number of `prompt` sections after the `profile` section declare profile prompts by assigning a prompt ID as a dot-nested value to the section name, for example `[prompt.dummy]`. A prompt can have the following fields (properties):
+
 - field `condition`: optional, containing an inline handlebars template that should render `1` to trigger this prompt
 - field `prompt`: containing plain text or an inline handlebars template that is being rendered to the user as prompt text
 - field `options`: optional, containing either an array or table (object) of available options (for select and multiselect prompts), or string (for input prompts), or an inline handlebars template that renders a comma-separated list of options (for select and multi-select prompts)
 - field `multiple`: optional, boolean flag indicating a multi-select; default is `false`
 - field `ordered`: optional, boolean flag indicating that order matters for multi-select values; default is `false`
 - field `required`: optional, boolean flag indicating that empty values will not be accepted; default is `false`
+
 3. Any number of `target` sections after the `prompt` sections declare profile build targets by assigning a target ID as a dot-nested value to the section name, for example `[target.dummy]`. A target can have the following fields (properties):
+
 - field `condition`: optional, containing an inline handlebars template that should render `1` to trigger this target to be rendered
 - field `template`: string containing a template name, which should exist as a file with `.hbs` extension in the `templates-dir` directory. For example `dummy`, or `backend/dummy`.
 - field `target`: string containing an inline handlebars template that should render to a file path inside the `target-dir`. Missing path elements will be created. Could also be plain text path like `main.rs`.
@@ -112,8 +120,9 @@ The `Ctgen.toml` file describes the profile behavior and follows this set of rul
 # Notes
 
 - If a rhai script file is named `op.rhai` inside `assets/scripts`, then you will have `{{op}}` helper available in your handlebars templates
+- Rhai comes with the following additional packages enabled: [rhai-chrono](https://github.com/iganev/rhai-chrono), [rhai-sci](https://github.com/rhaiscript/rhai-sci), [rhai-fs](https://github.com/rhaiscript/rhai-fs), [rhai-url](https://github.com/rhaiscript/rhai-url).
 - If your template file is named `backend.hbs` inside `assets/templates`, to define a target that uses that template, use the name `backend` as template name
-- Available helpers (other than [handlebars](https://handlebarsjs.com/guide/builtin-helpers.html#if)' defaults) are: `{{inflect}}` [handlebars-inflector](https://crates.io/crates/handlebars-inflector), `{{concat}}` [handlebars-concat](https://crates.io/crates/handlebars-concat), `{{datetime}}` [handlebars-chrono](https://crates.io/crates/handlebars-chrono)  and `{{json}}` (takes the first argument and turns it into a JSON)
+- Available helpers (other than [handlebars](https://handlebarsjs.com/guide/builtin-helpers.html#if)' defaults) are: `{{inflect}}` [handlebars-inflector](https://crates.io/crates/handlebars-inflector), `{{concat}}` [handlebars-concat](https://crates.io/crates/handlebars-concat), `{{datetime}}` [handlebars-chrono](https://crates.io/crates/handlebars-chrono) and `{{{json}}}` (takes the first argument and turns it into a JSON)
 - The context available during rendering handlebars templates looks roughly like:
 
 ```json
@@ -149,6 +158,7 @@ To dump your own context for debugging purposes use `{{{json this}}}` in your te
 This tool relies heavily on [handlebars-rust](https://github.com/sunng87/handlebars-rust/) and [rhai](https://github.com/rhaiscript/rhai/) crates. :heart:
 
 # TODO
+
 - improve error handling
 - improve logging
 - improve `database-reflection` (add more adapters)
