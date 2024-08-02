@@ -13,6 +13,7 @@ use dialoguer::{Confirm, Input, MultiSelect, Select, Sort};
 use log::{debug, error, info, log_enabled, Level};
 use serde_json::Value;
 use std::error::Error;
+use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::Path;
 
@@ -268,8 +269,7 @@ async fn main() -> Result<()> {
                     } else {
                         Path::new(&CtGen::get_current_working_dir()?)
                             .file_name()
-                            .unwrap_or_default()
-                            .to_str()
+                            .and_then(OsStr::to_str)
                             .unwrap_or_default()
                             .to_string()
                     }
