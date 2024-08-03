@@ -164,8 +164,20 @@ impl CtGen {
 
                 if let Some(config_profiles) = config.get("profiles") {
                     if config_profiles.is_table() {
-                        for (profile_name, profile_file) in config_profiles.as_table().ok_or_else(|| CtGenError::ValidationError(format!("Invalid profiles table.")))?.iter() {
-                            profiles.insert(profile_name.to_string(), profile_file.as_str().ok_or_else(|| CtGenError::ValidationError(format!("Invalid profile file for profile `{}`.", profile_name)))?.to_string());
+                        for (profile_name, profile_file) in config_profiles
+                            .as_table()
+                            .ok_or_else(|| CtGenError::ValidationError(format!("Invalid profiles table.")))?
+                            .iter()
+                        {
+                            profiles.insert(
+                                profile_name.to_string(),
+                                profile_file
+                                    .as_str()
+                                    .ok_or_else(|| {
+                                        CtGenError::ValidationError(format!("Invalid profile file for profile `{}`.", profile_name))
+                                    })?
+                                    .to_string(),
+                            );
                         }
                     }
                 }
@@ -338,7 +350,9 @@ impl CtGen {
             .map_err(|e| CtGenError::RuntimeError(format!("Failed to flush toml file: {}", e)))?;
 
         for target in profile.targets() {
-            let target = profile.target(target).ok_or(CtGenError::ValidationError(format!("Target `{}` does not exist.", target)))?;
+            let target = profile
+                .target(target)
+                .ok_or(CtGenError::ValidationError(format!("Target `{}` does not exist.", target)))?;
 
             let template_file = CtGen::get_filepath(profile.templates_dir().as_str(), format!("{}.hbs", target.template()).as_str());
 
