@@ -89,7 +89,7 @@ impl CtGenProfile {
             profile: CtGenProfileConfig {
                 name: name.to_string(),
                 env_file: ".env".to_string(),
-                env_var: "DB_CONNECTION".to_string(),
+                env_var: "DATABASE_URL".to_string(),
                 dsn: "".to_string(),
                 target_dir: "src".to_string(),
                 templates_dir: "assets/templates".to_string(),

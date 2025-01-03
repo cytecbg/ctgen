@@ -5,6 +5,7 @@ pub enum CtGenError {
     InitError(String),
     ValidationError(String),
     RuntimeError(String),
+    DatabaseError(String),
 }
 
 impl Display for CtGenError {
@@ -18,6 +19,9 @@ impl Display for CtGenError {
             }
             CtGenError::RuntimeError(s) => {
                 write!(f, "RuntimeError: {}", s)
+            }
+            CtGenError::DatabaseError(s) => {
+                write!(f, "DatabaseError: {}", s)
             }
         }
     }
