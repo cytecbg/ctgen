@@ -161,23 +161,29 @@ impl CtGenTask<'_> {
             pre_create_context = false;
         }
 
-        if table.is_none() {
-            // no task subject given, must add prompt
-            prompts.push(CtGenTaskPrompt::PromptTable);
-            pre_create_context = false;
-        } else {
-            // check if table exists
-            let table = table.unwrap().to_string();
-            let tables = reflection_adapter.list_table_names().await?;
-            if !tables.contains(&table) {
-                return Err(CtGenError::ValidationError("Table does not exist".to_string()).into());
+        match table {
+            Some(table) => {
+                // check if table exists
+                let table = table.to_string();
+                let tables = reflection_adapter.list_table_names().await?;
+                if !tables.contains(&table) {
+                    return Err(CtGenError::ValidationError("Table does not exist".to_string()).into());
+                }
+            }
+            None => {
+                // no task subject given, must add prompt
+                prompts.push(CtGenTaskPrompt::PromptTable);
+                pre_create_context = false;
             }
         }
 
         for prompt_name in profile.prompts() {
             prompts.push(CtGenTaskPrompt::PromptGeneric {
                 prompt_id: prompt_name.to_string(),
-                prompt_data: profile.prompt(prompt_name).unwrap().clone(),
+                prompt_data: profile
+                    .prompt(prompt_name)
+                    .ok_or_else(|| CtGenError::RuntimeError(format!("Prompt `{}` does not exist in prompts table", prompt_name)))?
+                    .clone(),
             });
         }
 
@@ -185,9 +191,10 @@ impl CtGenTask<'_> {
         let mut context: Option<CtGenTaskContext> = None;
 
         if pre_create_context {
-            let database = reflection_adapter.get_reflection().await?;
-
-            context = Some(CtGenTaskContext::new(database, table.unwrap())?);
+            context = Some(CtGenTaskContext::new(
+                reflection_adapter.get_reflection().await?,
+                table.unwrap_or_default(),
+            )?);
         }
 
         // init renderer
@@ -374,8 +381,10 @@ impl CtGenTask<'_> {
                 context.set_prompt_answer(prompt_id, prompt_answer);
             }
         } else if !self.reflection_adapter.get_database_name().is_empty() && self.table.is_some() {
-            let database = self.reflection_adapter.get_reflection().await?;
-            self.context = Some(CtGenTaskContext::new(database, &self.table.clone().unwrap())?);
+            self.context = Some(CtGenTaskContext::new(
+                self.reflection_adapter.get_reflection().await?,
+                self.table.as_deref().unwrap_or_default(),
+            )?);
         }
 
         Ok(())
@@ -410,7 +419,16 @@ impl CtGenTask<'_> {
         let canonical_target_file = CtGen::get_filepath(self.target_dir(), &target_file);
 
         // init sub-directories if necessary
-        CtGen::init_config_dir(Path::new(&canonical_target_file).parent().unwrap().to_string_lossy().as_ref()).await?;
+        CtGen::init_config_dir(
+            Path::new(&canonical_target_file)
+                .parent()
+                .ok_or_else(|| {
+                    CtGenError::RuntimeError(format!("Failed to parse target file parent directory: {}", canonical_target_file))
+                })?
+                .to_string_lossy()
+                .as_ref(),
+        )
+        .await?;
 
         let mut file = OpenOptions::new()
             .write(true)
@@ -499,7 +517,7 @@ impl CtGenTask<'_> {
         let options = if prompt.options().is_str() {
             // template expression that needs to be evaluated and exploded by ","
             let options = self
-                .render(prompt.options().as_str().unwrap())?
+                .render(prompt.options().as_str().unwrap_or_default())?
                 .split(',')
                 .map(str::to_string)
                 .collect::<Vec<String>>();

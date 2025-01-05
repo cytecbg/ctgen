@@ -264,7 +264,7 @@ async fn main() -> Result<()> {
                 //CONFIG_NAME_DEFAULT.to_string()
                 let default_name = if ctgen.get_profiles().contains_key(CONFIG_NAME_DEFAULT) {
                     // there's already a default profile, so we better suggest something else, like for example the path, if it's alphanumeric, or the base directory name of the CWD
-                    if CtGen::get_name_regex()?.is_match(&path) {
+                    if CtGen::get_name_regex().is_match(&path) {
                         path.clone()
                     } else {
                         Path::new(&CtGen::get_current_working_dir()?)
@@ -281,7 +281,7 @@ async fn main() -> Result<()> {
                     let answer = ask_prompt("Enter profile name:", Some(&Value::String(default_name.clone())), false, false).await;
 
                     if answer.as_ref().is_ok_and(|v| v.as_str().is_some_and(|s| !s.is_empty())) {
-                        break answer.unwrap().as_str().unwrap().to_string();
+                        break answer.ok().and_then(|a| a.as_str().map(str::to_string)).unwrap_or_default();
                     }
                 }
             };
@@ -346,10 +346,10 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
 
             let input: String = Input::with_theme(&ColorfulTheme::default())
                 .with_prompt(prompt_text)
-                .default(options.as_str().unwrap().to_string())
+                .default(options.as_str().map(str::to_string).unwrap_or_default())
                 .report(true)
                 .interact_text()
-                .unwrap();
+                .map_err(|e| CtGenError::RuntimeError(format!("Failed to render input prompt `{}`: {}", prompt_text, e)))?;
 
             return Ok(Value::from(input));
         } else if !options.is_object() && !options.is_array() {
@@ -360,16 +360,16 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
             let multiselected = if options.is_object() {
                 options
                     .as_object()
-                    .unwrap()
+                    .ok_or_else(|| CtGenError::RuntimeError(format!("Failed to parse multi-select object for prompt: {}", prompt_text)))?
                     .values()
-                    .map(|v| v.as_str().unwrap().to_string())
+                    .map(|v| v.as_str().unwrap_or("[FAILED TO PARSE VALUE]").to_string())
                     .collect::<Vec<String>>()
             } else {
                 options
                     .as_array()
-                    .unwrap()
+                    .ok_or_else(|| CtGenError::RuntimeError(format!("Failed to parse multi-select array for prompt: {}", prompt_text)))?
                     .iter()
-                    .map(|v| v.as_str().unwrap().to_string())
+                    .map(|v| v.as_str().unwrap_or("[FAILED TO PARSE VALUE]").to_string())
                     .collect::<Vec<String>>()
             };
 
@@ -381,7 +381,7 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
                 .max_length(20)
                 .report(true)
                 .interact()
-                .unwrap();
+                .map_err(|e| CtGenError::RuntimeError(format!("Failed to render multi-select prompt `{}`: {}", prompt_text, e)))?;
 
             let (multiselected, selections) = if ordered
                 && selections.len() > 1
@@ -390,8 +390,9 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
                     .wait_for_newline(true)
                     .report(true)
                     .interact()
-                    .unwrap()
-            {
+                    .map_err(|e| {
+                        CtGenError::RuntimeError(format!("Failed to render reorder sub-prompt for prompt `{}`: {}", prompt_text, e))
+                    })? {
                 let subset = multiselected
                     .iter()
                     .enumerate()
@@ -405,7 +406,9 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
                     .with_prompt("Sort the selected items:")
                     .items(&subset[..])
                     .interact()
-                    .unwrap();
+                    .map_err(|e| {
+                        CtGenError::RuntimeError(format!("Failed to render sort sub-prompt for prompt `{}`: {}", prompt_text, e))
+                    })?;
 
                 (subset, subset_sort)
             } else {
@@ -419,10 +422,18 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
 
                     let key = options
                         .as_object()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            CtGenError::RuntimeError(format!("Failed to parse multiselect options for prompt `{}`", prompt_text))
+                        })?
                         .iter()
-                        .find_map(|(k, v)| if v.as_str().unwrap() == value { Some(k.clone()) } else { None })
-                        .unwrap_or(String::from(""));
+                        .find_map(|(k, v)| {
+                            if v.as_str().unwrap_or_default() == value {
+                                Some(k.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or_default();
 
                     results.push(key.clone());
                 }
@@ -436,7 +447,13 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
 
                 Ok(Value::from(results))
             }
-        } else if options.is_object() && options.as_object().unwrap().keys().all(|e| ["0", "1"].contains(&e.as_str())) {
+        } else if options.is_object()
+            && options
+                .as_object()
+                .ok_or_else(|| CtGenError::RuntimeError("Failed to parse confirm options object".to_string()))?
+                .keys()
+                .all(|e| ["0", "1"].contains(&e.as_str()))
+        {
             // confirm
 
             if Confirm::with_theme(&ColorfulTheme::default())
@@ -444,7 +461,7 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
                 .wait_for_newline(true)
                 .report(true)
                 .interact()
-                .unwrap()
+                .map_err(|e| CtGenError::RuntimeError(format!("Failed to render confirm prompt `{}`: {}", prompt_text, e)))?
             {
                 Ok(Value::from("1"))
             } else {
@@ -456,16 +473,16 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
             let selections = if options.is_object() {
                 options
                     .as_object()
-                    .unwrap()
+                    .ok_or_else(|| CtGenError::RuntimeError("Failed to parse select options object".to_string()))?
                     .values()
-                    .map(|v| v.as_str().unwrap().to_string())
+                    .map(|v| v.as_str().unwrap_or_default().to_string())
                     .collect::<Vec<String>>()
             } else {
                 options
                     .as_array()
-                    .unwrap()
+                    .ok_or_else(|| CtGenError::RuntimeError("Failed to parse select options array".to_string()))?
                     .iter()
-                    .map(|v| v.as_str().unwrap().to_string())
+                    .map(|v| v.as_str().unwrap_or_default().to_string())
                     .collect::<Vec<String>>()
             };
 
@@ -475,20 +492,22 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
                 .items(&selections[..])
                 .report(true)
                 .interact()
-                .unwrap();
+                .map_err(|e| CtGenError::RuntimeError(format!("Failed to render select prompt `{}`: {}", prompt_text, e)))?;
 
             if options.is_object() {
-                let value = selections.get(selection).unwrap();
+                let value = selections
+                    .get(selection)
+                    .ok_or_else(|| CtGenError::RuntimeError("Failed to get selection value".to_string()))?;
                 let key = options
                     .as_object()
-                    .unwrap()
+                    .ok_or_else(|| CtGenError::RuntimeError("Failed to parse select options object".to_string()))?
                     .iter()
                     .find_map(|(k, v)| if v == value { Some(k.clone()) } else { None })
-                    .unwrap_or(String::from(""));
+                    .unwrap_or_default();
 
                 Ok(Value::from(key.clone()))
             } else {
-                Ok(Value::from(selections.get(selection).unwrap().clone()))
+                Ok(Value::from(selections.get(selection).cloned().unwrap_or_default()))
             }
         }
     } else {
@@ -497,38 +516,8 @@ async fn ask_prompt(prompt_text: &str, options: Option<&Value>, multiple: bool, 
         let input: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt_text)
             .interact_text()
-            .unwrap();
+            .map_err(|e| CtGenError::RuntimeError(format!("Failed to render input prompt `{}`: {}", prompt_text, e)))?;
 
         Ok(Value::from(input))
     };
-
-    //Ok(Value::from(""))
-
-    // println!("Prompt: {}", prompt_text);
-    //
-    // if let Some(options) = options {
-    //     if options.is_string() {
-    //         println!("Options: {}", options.as_str().unwrap());
-    //     } else if options.is_array() {
-    //         for option in options.as_array().unwrap() {
-    //             println!("Option: {}", option);
-    //         }
-    //     } else if options.is_object() {
-    //         for (option_key, option_val) in options.as_object().unwrap() {
-    //             println!("Option: {} = {}", option_key, option_val);
-    //         }
-    //     }
-    // }
-    //
-    // let mut input_lines = BufReader::new(tokio::io::stdin()).lines();
-    //
-    // if let Some(line) = input_lines.next_line().await? {
-    //     if multiple {
-    //         return Ok(Value::from(line.split(',').map(str::to_string).collect::<Vec<String>>()));
-    //     } else {
-    //         return Ok(Value::from(line));
-    //     }
-    // }
-    //
-    // Ok(Value::from(""))
 }

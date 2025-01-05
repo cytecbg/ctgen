@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 use regex::Regex;
 use std::env;
 use std::path::MAIN_SEPARATOR;
+use std::sync::LazyLock;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Clone, Default, Debug)]
@@ -47,26 +48,26 @@ impl CtGen {
         })
     }
 
-    /// Resole and get path to store config files
+    /// Resolve and get path to store config files
     pub fn get_config_dir() -> Result<String> {
-        let path = dirs::config_dir().ok_or(CtGenError::InitError("Failed to get config directory.".to_string()))?;
+        let path = dirs::config_dir().ok_or_else(|| CtGenError::InitError("Failed to get config directory.".to_string()))?;
 
         Ok(format!(
             "{}{}{}",
-            path.into_os_string()
-                .into_string()
-                .map_err(|e| CtGenError::InitError(format!("Failed to parse UTF-8 path: {:?}", e)))?,
+            path.to_str()
+                .ok_or_else(|| CtGenError::InitError(format!("Failed to parse UTF-8 path: {:?}", path)))?,
             MAIN_SEPARATOR,
             CONFIG_DIR_NAME
         ))
     }
 
+    /// Resolve and get current working directory
     pub fn get_current_working_dir() -> Result<String> {
         Ok(env::current_dir()
             .map_err(|e| CtGenError::RuntimeError(format!("Failed to get current working directory: {}", e)))?
-            .into_os_string()
-            .into_string()
-            .map_err(|s| CtGenError::RuntimeError(format!("Failed to parse UTC-8 path: {:?}", s)))?)
+            .to_str()
+            .map(str::to_string)
+            .ok_or_else(|| CtGenError::RuntimeError("Failed to parse UTC-8 CWD path".to_string()))?)
     }
 
     /// Get full filepath and filename
@@ -86,12 +87,12 @@ impl CtGen {
             }
         }
 
-        Ok(tokio::fs::canonicalize(path)
+        Ok(tokio::fs::canonicalize(&path)
             .await
             .map_err(|e| CtGenError::RuntimeError(format!("Failed to resolve path: {:?}", e)))?
-            .into_os_string()
-            .into_string()
-            .map_err(|s| CtGenError::RuntimeError(format!("Failed to parse UTC-8 path: {:?}", s)))?)
+            .to_str()
+            .map(str::to_string)
+            .ok_or_else(|| CtGenError::RuntimeError(format!("Failed to parse UTC-8 path: {:?}", path)))?)
     }
 
     /// Get full canonical filepath and filename
@@ -106,16 +107,18 @@ impl CtGen {
 
     /// Check if a given file location is writeable
     pub async fn file_is_writable(file: &str) -> bool {
-        tokio::fs::try_exists(file).await.is_ok()
+        if let Ok(f) = tokio::fs::File::open(file).await {
+            tokio::fs::File::metadata(&f)
+                .await
+                .is_ok_and(|metadata| !metadata.permissions().readonly())
+        } else {
+            false
+        }
     }
 
     /// Check if file exists
     pub async fn file_exists(file: &str) -> bool {
-        if let Ok(r) = tokio::fs::try_exists(file).await {
-            return r;
-        }
-
-        false
+        tokio::fs::try_exists(file).await.is_ok_and(|res| res)
     }
 
     /// Create an empty config file to store profiles
@@ -135,7 +138,7 @@ impl CtGen {
 
         file.flush()
             .await
-            .map_err(|_e| CtGenError::InitError(format!("Cannot flush to config file: {}", config_file)))?;
+            .map_err(|_e| CtGenError::InitError(format!("Cannot flush config file: {}", config_file)))?;
 
         Ok(())
     }
@@ -147,9 +150,14 @@ impl CtGen {
             .map_err(|e| CtGenError::InitError(format!("Cannot create config directory: {}", e)))?)
     }
 
-    pub fn get_name_regex() -> Result<Regex> {
-        // validate name
-        Ok(Regex::new(CONFIG_NAME_PATTERN).map_err(|e| CtGenError::ValidationError(format!("Failed to compile regex pattern: {}", e)))?)
+    /// Get config validation regex
+    pub fn get_name_regex() -> &'static Regex {
+        static RE: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(CONFIG_NAME_PATTERN)
+                .unwrap_or_else(|_| panic!("Failed to compile name validation regex pattern: {}", CONFIG_NAME_PATTERN))
+        });
+
+        &RE
     }
 
     /// Load profiles config file
@@ -166,7 +174,7 @@ impl CtGen {
                     if config_profiles.is_table() {
                         for (profile_name, profile_file) in config_profiles
                             .as_table()
-                            .ok_or_else(|| CtGenError::ValidationError(format!("Invalid profiles table.")))?
+                            .ok_or_else(|| CtGenError::ValidationError("Invalid profiles table.".to_string()))?
                             .iter()
                         {
                             profiles.insert(
@@ -188,6 +196,7 @@ impl CtGen {
         }
     }
 
+    /// Persist Profiles.toml file
     async fn save_profiles(&self) -> Result<()> {
         let mut profiles_config = toml::map::Map::new();
         let mut profiles = toml::Table::new();
@@ -226,7 +235,7 @@ impl CtGen {
     /// Add a new profile or replace existing
     pub async fn add_profile(&mut self, name: &str, path: &str) -> Result<CtGenProfile> {
         // validate name
-        let regex = CtGen::get_name_regex()?;
+        let regex = CtGen::get_name_regex();
 
         // if name is empty we will use the profile defined name later on
         if !name.is_empty() && !regex.is_match(name) {
@@ -270,6 +279,7 @@ impl CtGen {
         Ok(profile)
     }
 
+    /// Remove configuration profile
     pub async fn remove_profile(&mut self, name: &str) -> Result<()> {
         if self.profiles.contains_key(name) {
             self.profiles.swap_remove(name);
@@ -284,6 +294,7 @@ impl CtGen {
         self.save_profiles().await
     }
 
+    /// Load configuration profile
     pub async fn set_current_profile(&mut self, name: &str) -> Result<&CtGenProfile> {
         if let Some(profile_path) = self.profiles.get(name) {
             let profile = CtGenProfile::load(profile_path, name).await?;
@@ -299,13 +310,15 @@ impl CtGen {
         }
     }
 
+    /// Get currently loaded configuration profile
     pub fn get_current_profile(&self) -> Option<&CtGenProfile> {
         self.current_profile.as_ref()
     }
 
+    /// Initialize new configuration profile
     pub async fn init_profile(&mut self, path: &str, name: &str) -> Result<CtGenProfile> {
         // validate name
-        let regex = CtGen::get_name_regex()?;
+        let regex = CtGen::get_name_regex();
 
         let fullpath = if path == "." || path == "./" {
             // default, cwd
@@ -377,6 +390,7 @@ impl CtGen {
         self.add_profile(name, &config_file).await
     }
 
+    /// Create generation task
     pub async fn create_task(
         &self,
         context_dir: &str,
