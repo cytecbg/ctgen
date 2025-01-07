@@ -304,7 +304,7 @@ impl CtGen {
 
             self.current_profile
                 .as_ref()
-                .ok_or(CtGenError::ValidationError("Invalid profile. No such profile found".to_string()).into())
+                .ok_or_else(|| CtGenError::ValidationError("Invalid profile. No such profile found".to_string()).into())
         } else {
             Err(CtGenError::ValidationError("Invalid profile name. No such profile found".to_string()).into())
         }
@@ -365,7 +365,7 @@ impl CtGen {
         for target in profile.targets() {
             let target = profile
                 .target(target)
-                .ok_or(CtGenError::ValidationError(format!("Target `{}` does not exist.", target)))?;
+                .ok_or_else(|| CtGenError::ValidationError(format!("Target `{}` does not exist.", target)))?;
 
             let template_file = CtGen::get_filepath(profile.templates_dir().as_str(), format!("{}.hbs", target.template()).as_str());
 
