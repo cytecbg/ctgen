@@ -41,12 +41,9 @@ impl CtGenProfile {
 
                 let context_dir = Path::new(file)
                     .parent()
-                    .ok_or(CtGenError::RuntimeError(format!("Failed to parse dirname from path: {}", file)))?
+                    .ok_or_else(|| CtGenError::RuntimeError(format!("Failed to parse dirname from path: {}", file)))?
                     .to_str()
-                    .ok_or(CtGenError::RuntimeError(format!(
-                        "Failed to parse UTF-8 dirname from path: {}",
-                        file
-                    )))?;
+                    .ok_or_else(|| CtGenError::RuntimeError(format!("Failed to parse UTF-8 dirname from path: {}", file)))?;
 
                 profile.set_context_dir(context_dir);
 
@@ -121,10 +118,12 @@ impl CtGenProfile {
 
         // validate targets template existence
         for target_name in self.targets() {
-            let target = self.target(target_name).ok_or(CtGenError::ValidationError(format!(
-                "Invalid target `{}`. Make sure all included targets are actually declared.",
-                target_name
-            )))?;
+            let target = self.target(target_name).ok_or_else(|| {
+                CtGenError::ValidationError(format!(
+                    "Invalid target `{}`. Make sure all included targets are actually declared.",
+                    target_name
+                ))
+            })?;
 
             let template_canonical_path = CtGen::get_filepath(&canonical_templates_dir, format!("{}.hbs", target.template()).as_str());
 
