@@ -24,7 +24,7 @@ impl CtGenTaskContext {
     pub fn new(database: Database, table_name: &str) -> Result<Self> {
         let table = database
             .table(table_name)
-            .ok_or(CtGenError::ValidationError(format!("Table not found: {}", table_name)))?;
+            .ok_or_else(|| CtGenError::ValidationError(format!("Table not found: {}", table_name)))?;
 
         let constraints_local = database.constraints_by_table(table.clone(), Some(ConstraintSide::Local));
         let constraints_foreign = database.constraints_by_table(table.clone(), Some(ConstraintSide::Foreign));
