@@ -334,8 +334,8 @@ impl CtGen {
         let profile = CtGenProfile::new(&fullpath, name);
 
         CtGen::init_config_dir(&fullpath).await?;
-        CtGen::init_config_dir(profile.templates_dir().as_str()).await?;
-        CtGen::init_config_dir(profile.scripts_dir().as_str()).await?;
+        CtGen::init_config_dir(&profile.templates_dir()).await?;
+        CtGen::init_config_dir(&profile.scripts_dir()).await?;
 
         let toml = toml::to_string(&profile).map_err(|e| CtGenError::RuntimeError(format!("Failed to generate toml file: {}", e)))?;
 
@@ -367,7 +367,7 @@ impl CtGen {
                 .target(target)
                 .ok_or_else(|| CtGenError::ValidationError(format!("Target `{}` does not exist.", target)))?;
 
-            let template_file = CtGen::get_filepath(profile.templates_dir().as_str(), format!("{}.hbs", target.template()).as_str());
+            let template_file = CtGen::get_filepath(&profile.templates_dir(), &format!("{}.hbs", target.template()));
 
             let template = DUMMY_TEMPLATE;
 
