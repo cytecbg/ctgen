@@ -36,7 +36,7 @@ impl CtGenProfile {
                     profile.set_name(name);
                 } else {
                     let name = profile.profile.name().to_string();
-                    profile.set_name(name.as_str());
+                    profile.set_name(&name);
                 }
 
                 let context_dir = Path::new(file)
@@ -125,7 +125,7 @@ impl CtGenProfile {
                 ))
             })?;
 
-            let template_canonical_path = CtGen::get_filepath(&canonical_templates_dir, format!("{}.hbs", target.template()).as_str());
+            let template_canonical_path = CtGen::get_filepath(&canonical_templates_dir, &format!("{}.hbs", target.template()));
 
             if !CtGen::file_exists(&template_canonical_path).await {
                 return Err(CtGenError::ValidationError(format!("Template file not found for target {}.", target_name)).into());
